@@ -23,8 +23,16 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/KarimAntar/SS-whisper.cpp.git}"
 BRANCH="${BRANCH:-master}"
 
+# The workspace path baked into the committed files (the source server). Any
+# occurrence of this inside systemd units / run.sh is rewritten to $WORKSPACE on
+# install, so this bundle is portable to a VPS using a different home dir.
+SRC_WORKSPACE="${SRC_WORKSPACE:-/home/ubuntu/.openclaw/workspace}"
+
 WORKSPACE="${WORKSPACE:-/home/ubuntu/.openclaw/workspace}"
 API_DIR="${API_DIR:-$WORKSPACE/voicemail_api}"
+
+# Set SKIP_SYSTEMD=1 to leave the target's existing systemd units untouched.
+SKIP_SYSTEMD="${SKIP_SYSTEMD:-0}"
 CADDY_ROOT="${CADDY_ROOT:-/usr/share/caddy}"
 CADDYFILE="${CADDYFILE:-/etc/caddy/Caddyfile}"
 SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
@@ -46,6 +54,20 @@ err()  { printf '\033[1;31m[error]\033[0m %s\n' "$*" >&2; }
 # sudo wrapper (no-op if already root)
 SUDO=""
 if [[ "$(id -u)" -ne 0 ]]; then SUDO="sudo"; fi
+
+# install_rewritten <mode> <src> <dest> — install a file, rewriting the baked-in
+# source workspace path to the target $WORKSPACE first.
+install_rewritten() {
+  local mode="$1" src="$2" dest="$3"
+  local tmp; tmp="$(mktemp)"
+  if [[ "$WORKSPACE" != "$SRC_WORKSPACE" ]]; then
+    sed "s#${SRC_WORKSPACE}#${WORKSPACE}#g" "$src" > "$tmp"
+  else
+    cp "$src" "$tmp"
+  fi
+  $SUDO install -m "$mode" "$tmp" "$dest"
+  rm -f "$tmp"
+}
 
 backup() {
   # backup <path> — copy an existing file/dir into the timestamped backup dir
@@ -84,7 +106,7 @@ mkdir -p "$API_DIR"
 for f in server.py client.py run.sh README.md requirements.txt; do
   if [[ -f "$SRC/voicemail_api/$f" ]]; then
     backup "$API_DIR/$f"
-    install -m "$( [[ $f == run.sh ]] && echo 755 || echo 644 )" \
+    install_rewritten "$( [[ $f == run.sh ]] && echo 755 || echo 644 )" \
       "$SRC/voicemail_api/$f" "$API_DIR/$f"
   fi
 done
@@ -125,13 +147,17 @@ if command -v caddy >/dev/null 2>&1; then
 fi
 
 # 4) systemd units -------------------------------------------------------------
-log "Installing systemd units"
-for unit in "$SRC"/systemd/*.service; do
-  name="$(basename "$unit")"
-  backup "$SYSTEMD_DIR/$name"
-  $SUDO install -m 644 "$unit" "$SYSTEMD_DIR/$name"
-done
-$SUDO systemctl daemon-reload
+if [[ "$SKIP_SYSTEMD" == "1" ]]; then
+  warn "SKIP_SYSTEMD=1 — leaving existing systemd units untouched"
+else
+  log "Installing systemd units (workspace paths rewritten to $WORKSPACE)"
+  for unit in "$SRC"/systemd/*.service; do
+    name="$(basename "$unit")"
+    backup "$SYSTEMD_DIR/$name"
+    install_rewritten 644 "$unit" "$SYSTEMD_DIR/$name"
+  done
+  $SUDO systemctl daemon-reload
+fi
 
 # 5) Restart services ----------------------------------------------------------
 if command -v caddy >/dev/null 2>&1 && [[ -z "${CADDY_BAD:-}" ]]; then
