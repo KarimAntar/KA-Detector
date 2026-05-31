@@ -97,6 +97,61 @@ backup() {
   fi
 }
 
+# dump the tail of a unit's journal (used when something fails)
+dump_journal() {
+  local svc="$1" n="${2:-25}"
+  err "---- last $n log lines for $svc ----"
+  $SUDO journalctl -u "$svc" -n "$n" --no-pager 2>/dev/null | sed 's/^/    /' || true
+  err "---- end $svc log ----"
+}
+
+# wait_active <svc> <timeout_s> — poll until the unit is active; return non-zero
+# (and dump its journal) if it ends up failed or never becomes active in time.
+wait_active() {
+  local svc="$1" timeout="${2:-45}" waited=0 state
+  while true; do
+    state="$(systemctl is-active "$svc" 2>/dev/null || true)"
+    case "$state" in
+      active)     return 0 ;;
+      failed)     err "$svc entered 'failed'"; dump_journal "$svc"; return 1 ;;
+    esac
+    if (( waited >= timeout )); then
+      err "$svc did not become active within ${timeout}s (state: ${state:-unknown})"
+      dump_journal "$svc"; return 1
+    fi
+    sleep 2; waited=$((waited + 2))
+  done
+}
+
+# restart_verify <svc> <timeout_s> — clear any prior failure counter, enable,
+# restart, and wait for it to be active. On failure, retry once after a daemon-reload.
+restart_verify() {
+  local svc="$1" timeout="${2:-45}"
+  [[ -f "$SYSTEMD_DIR/$svc" ]] || { warn "$svc not installed — skipping"; return 0; }
+  log "Restarting $svc"
+  $SUDO systemctl reset-failed "$svc" 2>/dev/null || true
+  $SUDO systemctl enable "$svc" >/dev/null 2>&1 || true
+  $SUDO systemctl restart "$svc" 2>/dev/null || true
+  if wait_active "$svc" "$timeout"; then return 0; fi
+  warn "$svc failed first attempt — daemon-reload + one retry"
+  $SUDO systemctl daemon-reload
+  $SUDO systemctl reset-failed "$svc" 2>/dev/null || true
+  $SUDO systemctl restart "$svc" 2>/dev/null || true
+  wait_active "$svc" "$timeout"
+}
+
+# wait_http — poll a URL until it returns one of the accepted codes (or timeout).
+# Prints the final code via the global REPLY.
+wait_http() {
+  local url="$1" host="$2" timeout="${3:-40}" accept="${4:-200 401}" waited=0 code
+  while true; do
+    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 -H "Host: $host" "$url" 2>/dev/null || echo 000)"
+    for ok in $accept; do [[ "$code" == "$ok" ]] && { REPLY="$code"; return 0; }; done
+    if (( waited >= timeout )); then REPLY="$code"; return 1; fi
+    sleep 2; waited=$((waited + 2))
+  done
+}
+
 # ----------------------------------------------------------------------------
 log "Target VPS deploy starting (backups -> $BACKUP_DIR)"
 mkdir -p "$BACKUP_DIR"
@@ -203,26 +258,33 @@ else
   $SUDO systemctl daemon-reload
 fi
 
-# 5) Restart services ----------------------------------------------------------
+# 5) Pre-flight: whisper.cpp binary + model present? --------------------------
+# (deploy.sh does not build these — setup.sh does. Warn early so a failed
+#  whisper-server has an obvious explanation in the output.)
+WHISPER_BIN="$WORKSPACE/whisper.cpp/build/bin/whisper-server"
+MODEL_FILE="$WORKSPACE/whisper.cpp/models/ggml-${WHISPER_MODEL}.bin"
+[[ -x "$WHISPER_BIN"   ]] || warn "whisper-server binary missing: $WHISPER_BIN (run setup.sh to build whisper.cpp)"
+[[ -f "$MODEL_FILE"    ]] || warn "model missing: $MODEL_FILE (run setup.sh, or set WHISPER_MODEL to a model you have)"
+
+# 6) Restart + verify services ------------------------------------------------
+OVERALL_OK=1
+
+# Caddy: reload (fast, keeps connections); if that fails, restart; then verify.
 if command -v caddy >/dev/null 2>&1 && [[ -z "${CADDY_BAD:-}" ]]; then
   log "Reloading Caddy"
-  $SUDO systemctl reload caddy 2>/dev/null || $SUDO systemctl restart caddy || warn "caddy reload/restart failed"
-fi
-
-# Warn if whisper.cpp binary/model are missing (this script does NOT build them).
-if [[ ! -x "$WORKSPACE/whisper.cpp/build/bin/whisper-server" ]]; then
-  warn "whisper-server binary not found under $WORKSPACE/whisper.cpp/build/bin — build whisper.cpp on this VPS or the API will not transcribe."
-fi
-
-for svc in "${SERVICES[@]}"; do
-  if [[ -f "$SYSTEMD_DIR/$svc" ]]; then
-    log "Enabling + restarting $svc"
-    $SUDO systemctl enable "$svc" >/dev/null 2>&1 || true
-    $SUDO systemctl restart "$svc" || warn "failed to restart $svc"
+  if ! $SUDO systemctl reload caddy 2>/dev/null; then
+    warn "caddy reload failed — trying restart"
+    $SUDO systemctl reset-failed caddy 2>/dev/null || true
+    $SUDO systemctl restart caddy 2>/dev/null || true
   fi
-done
+  if ! wait_active caddy.service 30; then OVERALL_OK=0; fi
+fi
 
-# 6) Status --------------------------------------------------------------------
+# whisper-server FIRST (the API depends on it), then the API.
+restart_verify whisper-server.service 60 || OVERALL_OK=0
+restart_verify voicemail-api.service  60 || OVERALL_OK=0
+
+# 7) Status --------------------------------------------------------------------
 echo
 log "Service status:"
 for svc in caddy.service "${SERVICES[@]}"; do
@@ -230,20 +292,33 @@ for svc in caddy.service "${SERVICES[@]}"; do
   printf '   %-26s %s\n' "$svc" "${state:-unknown}"
 done
 
-# 7) Health check --------------------------------------------------------------
-# The API requires auth on /admin/*, so a healthy backend answers 200 or 401.
-# Anything else (502/000/connection refused) means it did not come up.
-log "Health check: GET :8808/admin/phrases"
-sleep 3
-code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
-        -H 'Host: vm.karims.dev' http://127.0.0.1:8808/admin/phrases || echo 000)"
-if [[ "$code" == "200" || "$code" == "401" ]]; then
-  log "API healthy (HTTP $code)"
+# 8) Health checks -------------------------------------------------------------
+# whisper-server: bound on 9305. API: /admin/* needs auth, so 200/401 = healthy.
+log "Waiting for whisper-server on 127.0.0.1:9305"
+if wait_http "http://127.0.0.1:9305/" "127.0.0.1" 40 "200 400 404 405"; then
+  log "whisper-server responding (HTTP $REPLY)"
 else
-  err "API NOT healthy (HTTP $code). Check: sudo journalctl -u voicemail-api.service -n 40 --no-pager"
+  warn "whisper-server not responding on :9305 (HTTP $REPLY) — transcription will fail"
+  OVERALL_OK=0
 fi
 
+log "Health check: GET :8808/admin/phrases (expect 200 or 401)"
+if wait_http "http://127.0.0.1:8808/admin/phrases" "vm.karims.dev" 40 "200 401"; then
+  log "API healthy (HTTP $REPLY)"
+else
+  err "API NOT healthy (HTTP $REPLY)"
+  dump_journal voicemail-api.service 30
+  OVERALL_OK=0
+fi
+
+# 9) Verdict -------------------------------------------------------------------
 echo
-log "Done. Backups of everything replaced are in: $BACKUP_DIR"
+log "Backups of everything replaced are in: $BACKUP_DIR"
 [[ -n "${CADDY_BAD:-}" ]] && err "NOTE: Caddyfile from repo did not validate — kept the old one. Fix and re-run."
-exit 0
+if [[ "$OVERALL_OK" == "1" ]]; then
+  log "✅ Deploy complete — Caddy + whisper-server + voicemail-api are all up and healthy."
+  exit 0
+else
+  err "❌ Deploy finished with problems — see the logs dumped above. The previous files are backed up in $BACKUP_DIR (see README 'Rollback')."
+  exit 1
+fi
