@@ -33,6 +33,11 @@ API_DIR="${API_DIR:-$WORKSPACE/voicemail_api}"
 
 # Set SKIP_SYSTEMD=1 to leave the target's existing systemd units untouched.
 SKIP_SYSTEMD="${SKIP_SYSTEMD:-0}"
+
+# The Unix user the services run as. Baked-in source value is "ubuntu"; rewritten
+# to the user actually running this deploy unless overridden.
+SRC_SERVICE_USER="${SRC_SERVICE_USER:-ubuntu}"
+SERVICE_USER="${SERVICE_USER:-${SUDO_USER:-$(id -un)}}"
 CADDY_ROOT="${CADDY_ROOT:-/usr/share/caddy}"
 CADDYFILE="${CADDYFILE:-/etc/caddy/Caddyfile}"
 SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
@@ -60,11 +65,10 @@ if [[ "$(id -u)" -ne 0 ]]; then SUDO="sudo"; fi
 install_rewritten() {
   local mode="$1" src="$2" dest="$3"
   local tmp; tmp="$(mktemp)"
-  if [[ "$WORKSPACE" != "$SRC_WORKSPACE" ]]; then
-    sed "s#${SRC_WORKSPACE}#${WORKSPACE}#g" "$src" > "$tmp"
-  else
-    cp "$src" "$tmp"
-  fi
+  # Rewrite baked-in workspace path and the systemd User= directive for this host.
+  sed -e "s#${SRC_WORKSPACE}#${WORKSPACE}#g" \
+      -e "s#^User=${SRC_SERVICE_USER}\$#User=${SERVICE_USER}#" \
+      "$src" > "$tmp"
   $SUDO install -m "$mode" "$tmp" "$dest"
   rm -f "$tmp"
 }
