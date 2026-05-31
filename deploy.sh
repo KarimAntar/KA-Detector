@@ -127,8 +127,14 @@ log "Updating Caddy site root $CADDY_ROOT"
 $SUDO mkdir -p "$CADDY_ROOT"
 backup "$CADDY_ROOT"
 # Sync web assets. --delete is deliberately NOT used so any large local backups
-# or extra assets on the target are left untouched.
-$SUDO rsync -a "$SRC/caddy/public/" "$CADDY_ROOT/"
+# or extra assets on the target are left untouched. Falls back to cp if rsync
+# is not installed.
+if command -v rsync >/dev/null 2>&1; then
+  $SUDO rsync -a "$SRC/caddy/public/" "$CADDY_ROOT/"
+else
+  warn "rsync not found — using cp"
+  $SUDO cp -a "$SRC/caddy/public/." "$CADDY_ROOT/"
+fi
 
 log "Updating $CADDYFILE"
 $SUDO mkdir -p "$(dirname "$CADDYFILE")"
