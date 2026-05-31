@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SS-Whisper</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iIzA3MTkzNCIvPjxyZWN0IHg9IjQiIHk9IjIwIiB3aWR0aD0iNSIgaGVpZ2h0PSI4IiByeD0iMiIgZmlsbD0iIzRjZDdmNiIgb3BhY2l0eT0iMC41Ii8+PHJlY3QgeD0iMTEiIHk9IjgiIHdpZHRoPSI1IiBoZWlnaHQ9IjIwIiByeD0iMiIgZmlsbD0iIzRjZDdmNiIvPjxyZWN0IHg9IjE4IiB5PSIxNCIgd2lkdGg9IjUiIGhlaWdodD0iMTQiIHJ4PSIyIiBmaWxsPSIjNGNkN2Y2IiBvcGFjaXR5PSIwLjgiLz48cmVjdCB4PSIyNSIgeT0iMTAiIHdpZHRoPSIzIiBoZWlnaHQ9IjE4IiByeD0iMS41IiBmaWxsPSIjNGNkN2Y2IiBvcGFjaXR5PSIwLjY1Ii8+PC9zdmc+Cg=="/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Public+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+  @font-face { font-family:'Geist'; src:url('https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-400-normal.woff2') format('woff2'); font-weight:400; }
+  @font-face { font-family:'Geist'; src:url('https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-700-normal.woff2') format('woff2'); font-weight:700; }
+  @font-face { font-family:'Geist'; src:url('https://cdn.jsdelivr.net/fontsource/fonts/geist-sans@latest/latin-900-normal.woff2') format('woff2'); font-weight:900; }
+  .font-jetbrains { font-family:'JetBrains Mono', monospace; }
+  .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 20; }
+  /* log lines */
+  .log-line { display:flex; align-items:flex-start; gap:8px; padding:4px 0; }
+  .log-line .ts  { color:rgba(150,171,214,0.5); flex-shrink:0; }
+  .log-line .lvl { font-weight:600; flex-shrink:0; }
+  .log-line.info  .lvl { color:#4cd7f6; }
+  .log-line.warn  .lvl { color:#facc15; }
+  .log-line.error .lvl { color:#fa746f; }
+  .log-line .msg  { color:rgba(219,229,255,0.8); word-break:break-all; }
+  /* scrollbar */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.2); }
+  /* line gutter — overflow hidden but scrollTop synced from textarea via JS */
+  .line-gutter {
+    overflow-y: hidden;
+    padding-top: 12px;   /* matches textarea py-3 */
+    padding-bottom: 12px;
+    line-height: 1.625;  /* matches leading-relaxed */
+    font-size: 14px;     /* matches text-sm */
+    display: block;
+  }
+  .line-gutter span { display:block; text-align:center; line-height:1.625; }
+  /* toasts */
+  #toastContainer { position:fixed; bottom:1.25rem; right:1.25rem; z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+  .toast { display:flex; align-items:center; gap:10px; padding:10px 16px; border-radius:12px; border-width:1px; font-size:13px; font-weight:500; pointer-events:auto; box-shadow:0 8px 24px rgba(0,0,0,0.5); opacity:0; transform:translateY(6px); transition:opacity 0.18s ease, transform 0.18s ease; }
+  .toast.show { opacity:1; transform:translateY(0); }
+  .toast.success { background:#071934; border-color:rgba(76,215,246,0.35); color:#4cd7f6; }
+  .toast.error   { background:#071934; border-color:rgba(250,116,111,0.35); color:#fa746f; }
+  .toast.warn    { background:#071934; border-color:rgba(250,204,21,0.35);  color:#facc15; }
+  .toast.info    { background:#071934; border-color:rgba(150,171,214,0.25); color:#96abd6; }
+  /* save button dirty state (unsaved changes pending) */
+  button.dirty { color:#fb923c !important; background:rgba(251,146,60,0.1) !important; border-color:rgba(251,146,60,0.3) !important; }
+</style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode:"class",
+    theme:{
+      extend:{
+        colors:{
+          "on-secondary-fixed":"#2c4349","secondary-container":"#283f45","on-primary-fixed":"#003640",
+          "on-surface-variant":"#96abd6","error-dim":"#c54d4a","primary-dim":"#37c9e7",
+          "surface-variant":"#0d2549","on-primary":"#004754","surface-bright":"#152c4f",
+          "on-secondary-container":"#abc3cb","tertiary":"#d3e4ff","on-background":"#dbe5ff",
+          "tertiary-fixed":"#bcd6fe","secondary":"#b2cbd2","on-error":"#490006",
+          "tertiary-container":"#bcd6fe","secondary-fixed":"#cee7ef","secondary-fixed-dim":"#c0d9e0",
+          "on-primary-container":"#00343e","inverse-on-surface":"#4c5569","on-tertiary-fixed":"#1c3757",
+          "on-secondary-fixed-variant":"#485f66","primary":"#4cd7f6","on-surface":"#dbe5ff",
+          "primary-container":"#21bedc","surface-container-highest":"#0d2549","error":"#fa746f",
+          "outline-variant":"#33486d","background":"#050e1f","surface-dim":"#050e1f",
+          "surface-container-lowest":"#000000","secondary-dim":"#a4bdc4","surface-tint":"#4cd7f6",
+          "surface-container":"#071934","on-tertiary-fixed-variant":"#3a5475","primary-fixed":"#53ddfc",
+          "on-tertiary-container":"#304a6b","error-container":"#871f21","primary-fixed-dim":"#40ceed",
+          "surface":"#050e1f","outline":"#61769d","on-secondary":"#2d444a",
+          "surface-container-low":"#05132a","on-primary-fixed-variant":"#005564",
+          "inverse-surface":"#f9f9ff","surface-container-high":"#0c1f3d","on-tertiary":"#395375",
+          "on-error-container":"#ff9993","tertiary-fixed-dim":"#aec8ef","inverse-primary":"#00687b",
+          "tertiary-dim":"#aec8ef"
+        },
+        borderRadius:{ DEFAULT:"0.25rem", lg:"0.5rem", xl:"0.75rem", full:"9999px" },
+        fontFamily:{ headline:["Geist","sans-serif"], display:["Geist","sans-serif"], body:["Inter","sans-serif"], label:["Public Sans","sans-serif"] }
+      }
+    }
+  }
+</script>
+</head>
+<body class="bg-background text-on-surface font-body h-screen flex overflow-hidden selection:bg-primary/30 selection:text-primary">
+
+<!-- ── Main wrapper ── -->
+<div class="flex-1 flex flex-col w-full h-full">
+
+  <!-- Canvas -->
+  <main class="flex-1 flex flex-col overflow-hidden p-4 gap-3 min-h-0">
+
+    <!-- Compact Header -->
+    <div class="flex items-center justify-between gap-4 shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-surface-container-high rounded-lg border border-outline-variant/50 flex items-center justify-center shadow-[0_0_10px_rgba(6,182,212,0.15)]">
+          <span class="material-symbols-outlined text-primary" style="font-size:16px;font-variation-settings:'FILL' 1,'wght' 400;">graphic_eq</span>
+        </div>
+        <div class="leading-tight">
+          <div class="font-headline font-bold text-base text-on-surface flex items-center gap-2">
+            SS-Whisper
+            <span class="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-jetbrains border border-primary/20">live</span>
+          </div>
+          <div class="text-xs text-on-surface-variant">Phrase &amp; DNC Editor</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="logout()"
+          class="px-2.5 py-1.5 text-xs font-medium text-on-surface-variant bg-surface-container-high border border-outline-variant/50 hover:border-error/40 hover:text-error rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap">
+          <span class="material-symbols-outlined text-[14px]">logout</span>Sign Out
+        </button>
+        <button id="exportJson"
+          class="px-2.5 py-1.5 text-xs font-medium text-on-surface-variant bg-surface-container-high border border-outline-variant/50 hover:border-primary/40 hover:text-primary rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap">
+          <span class="material-symbols-outlined text-[14px]">download</span>Export JSON
+        </button>
+        <button id="importJson"
+          class="px-2.5 py-1.5 text-xs font-medium text-on-surface-variant bg-surface-container-high border border-outline-variant/50 hover:border-primary/40 hover:text-primary rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap">
+          <span class="material-symbols-outlined text-[14px]">upload_file</span>Import JSON
+        </button>
+        <button id="normalize"
+          class="px-2.5 py-1.5 text-xs font-medium text-on-surface-variant bg-surface-container-high border border-outline-variant/50 hover:border-primary/40 hover:text-primary rounded-lg transition-all flex items-center gap-1.5 whitespace-nowrap">
+          <span class="material-symbols-outlined text-[14px]">sort_by_alpha</span>Normalize
+        </button>
+        <div class="w-px h-4 bg-outline-variant/50 mx-1"></div>
+        <span class="material-symbols-outlined text-on-surface-variant text-[14px]">lock</span>
+        <span class="text-xs text-on-surface-variant">API Key</span>
+        <div class="relative">
+          <input id="apiKey" type="text" autocomplete="off"
+            class="w-56 bg-surface-container-high border border-outline-variant text-on-surface text-xs rounded-lg px-3 py-1.5 font-jetbrains focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
+            value="5aa1a3c98a02d193d675b304e64504d9"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor Cards -->
+    <div class="grid grid-cols-2 gap-3 overflow-hidden" style="height:58vh">
+
+      <!-- Voicemail Phrases -->
+      <div class="bg-surface-container rounded-[14px] border border-outline-variant/60 flex flex-col shadow-sm overflow-hidden relative group h-full">
+        <div class="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div class="px-4 py-2.5 border-b border-outline-variant/40 flex justify-between items-center bg-surface-container-low/50 shrink-0">
+          <h3 class="font-headline font-semibold text-sm text-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[16px]">record_voice_over</span>
+            Voicemail Phrases
+          </h3>
+          <div class="flex items-center gap-1.5">
+            <div class="bg-surface-container-highest px-2 py-0.5 rounded text-[11px] font-jetbrains text-on-surface-variant border border-outline-variant/30">
+              phrases.txt
+            </div>
+            <button id="loadP" title="Reload from server"
+              class="p-1 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest rounded transition-colors">
+              <span class="material-symbols-outlined text-[16px]">refresh</span>
+            </button>
+            <button id="saveP" title="Save to server"
+              class="p-1 text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded transition-colors">
+              <span class="material-symbols-outlined text-[16px]">save</span>
+            </button>
+          </div>
+        </div>
+        <div class="p-3 flex-1 flex flex-col gap-2 min-h-0">
+          <div class="flex gap-2 shrink-0">
+            <input id="addPhraseInput" type="text" placeholder="Add a phrase and press Enter…"
+              class="flex-1 bg-surface-container-highest border border-outline-variant/80 text-on-surface text-sm rounded-lg px-3 py-1.5 font-body placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"/>
+            <button id="addPhraseBtn"
+              class="bg-primary text-background px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-primary-container transition-all flex items-center gap-1 shadow-[0_0_8px_rgba(76,215,246,0.2)]">
+              <span class="material-symbols-outlined text-[16px]">add</span>Add
+            </button>
+          </div>
+          <div class="relative flex-1 min-h-0">
+            <div class="line-gutter absolute left-0 top-0 bottom-0 w-8 bg-surface-container-highest/50 border-r border-outline-variant/30 text-on-surface-variant/40 font-jetbrains select-none rounded-l-lg z-10" id="gutterP" aria-hidden="true"></div>
+            <textarea id="phrases" spellcheck="false" placeholder="Voicemail phrases will load here…"
+              class="w-full h-full bg-surface-container-highest/30 border border-outline-variant/50 text-on-surface text-sm rounded-lg pl-10 pr-3 py-3 font-jetbrains leading-relaxed focus:outline-none focus:border-primary/50 focus:bg-surface-container-highest/50 transition-all resize-none shadow-inner"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- DNC Phrases -->
+      <div class="bg-surface-container rounded-[14px] border border-outline-variant/60 flex flex-col shadow-sm overflow-hidden relative group h-full">
+        <div class="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-error/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div class="px-4 py-2.5 border-b border-outline-variant/40 flex justify-between items-center bg-surface-container-low/50 shrink-0">
+          <h3 class="font-headline font-semibold text-sm text-on-surface flex items-center gap-2">
+            <span class="material-symbols-outlined text-error-dim text-[16px]">block</span>
+            DNC Phrases
+          </h3>
+          <div class="flex items-center gap-1.5">
+            <div class="bg-surface-container-highest px-2 py-0.5 rounded text-[11px] font-jetbrains text-on-surface-variant border border-outline-variant/30">
+              dnc.txt
+            </div>
+            <button id="loadD" title="Reload from server"
+              class="p-1 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest rounded transition-colors">
+              <span class="material-symbols-outlined text-[16px]">refresh</span>
+            </button>
+            <button id="saveD" title="Save to server"
+              class="p-1 text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded transition-colors">
+              <span class="material-symbols-outlined text-[16px]">save</span>
+            </button>
+          </div>
+        </div>
+        <div class="p-3 flex-1 flex flex-col gap-2 min-h-0">
+          <div class="flex gap-2 shrink-0">
+            <input id="addDncInput" type="text" placeholder="Add a phrase and press Enter…"
+              class="flex-1 bg-surface-container-highest border border-outline-variant/80 text-on-surface text-sm rounded-lg px-3 py-1.5 font-jetbrains placeholder:font-body placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"/>
+            <button id="addDncBtn"
+              class="bg-primary text-background px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-primary-container transition-all flex items-center gap-1 shadow-[0_0_8px_rgba(76,215,246,0.2)]">
+              <span class="material-symbols-outlined text-[16px]">add</span>Add
+            </button>
+          </div>
+          <div class="relative flex-1 min-h-0">
+            <div class="line-gutter absolute left-0 top-0 bottom-0 w-8 bg-surface-container-highest/50 border-r border-outline-variant/30 text-on-surface-variant/40 font-jetbrains select-none rounded-l-lg z-10" id="gutterD" aria-hidden="true"></div>
+            <textarea id="dnc" spellcheck="false" placeholder="DNC phrases will load here…"
+              class="w-full h-full bg-surface-container-highest/30 border border-outline-variant/50 text-on-surface text-sm rounded-lg pl-10 pr-3 py-3 font-jetbrains leading-relaxed focus:outline-none focus:border-primary/50 focus:bg-surface-container-highest/50 transition-all resize-none shadow-inner"></textarea>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /editor grid -->
+
+    <!-- Bottom Bar — fixed height, horizontal layout -->
+    <div class="flex gap-3 flex-1 min-h-0">
+
+      <!-- Activity Log -->
+      <div class="flex-1 bg-surface-container rounded-[14px] border border-outline-variant/60 px-4 py-3 flex flex-col gap-2 shadow-sm min-w-0">
+        <div class="flex justify-between items-center shrink-0">
+          <div class="text-[10px] font-semibold tracking-widest text-on-surface-variant uppercase flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[13px]">terminal</span>Activity Log
+          </div>
+          <div class="flex gap-1">
+            <button id="restoreBtn" title="Restore last checkpoint"
+              class="p-1 text-on-surface-variant hover:text-yellow-400 hover:bg-surface-container-highest rounded transition-colors">
+              <span class="material-symbols-outlined text-[15px]">history</span>
+            </button>
+            <button id="downloadLog" title="Download Log"
+              class="p-1 text-on-surface-variant hover:text-primary hover:bg-surface-container-highest rounded transition-colors">
+              <span class="material-symbols-outlined text-[15px]">download</span>
+            </button>
+            <button id="clearLog" title="Clear Log"
+              class="p-1 text-on-surface-variant hover:text-error hover:bg-surface-container-highest rounded transition-colors">
+              <span class="material-symbols-outlined text-[15px]">delete_sweep</span>
+            </button>
+          </div>
+          <input id="jsonFileInput" type="file" accept=".json,application/json" class="hidden"/>
+        </div>
+        <div id="log" class="flex-1 min-h-0 overflow-y-auto bg-background/50 border border-outline-variant/30 rounded-lg px-3 py-1 font-jetbrains text-xs shadow-inner"></div>
+      </div>
+
+    </div><!-- /bottom bar -->
+
+  </main>
+</div><!-- /main wrapper -->
+
+<div id="toastContainer"></div>
+
+<script>
+window.SERVER_API_KEY = "5aa1a3…04d9";
+const apiBase = window.location.origin || 'https://vps.karims.dev';
+
+// ── Toasts ──
+function toast(msg, type = 'info') {
+  const icons = { success:'check_circle', error:'error', warn:'warning', info:'info' };
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = `<span class="material-symbols-outlined" style="font-size:17px">${icons[type]}</span><span>${msg}</span>`;
+  document.getElementById('toastContainer').appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 200);
+  }, 3200);
+}
+
+// ── Log ──
+const LOG_MAX = 500;
+function formatTS(d){ return d.toISOString().replace('T',' ').replace('Z',''); }
+function appendLog(level, msg){
+  const p = document.getElementById('log');
+  const line = document.createElement('div');
+  line.className = 'log-line ' + level.toLowerCase();
+  line.innerHTML = `<span class="ts">${formatTS(new Date())}</span><span class="lvl">[${level}]</span><span class="msg">${msg}</span>`;
+  p.appendChild(line);
+  while(p.children.length > LOG_MAX) p.removeChild(p.firstChild);
+  p.scrollTop = p.scrollHeight;
+}
+function logInfo(m)  { appendLog('INFO',  m); }
+function logWarn(m)  { appendLog('WARN',  m); }
+function logError(m) { appendLog('ERROR', m); }
+
+// ── Line gutter ──
+function scrollTABottom(taId) {
+  const ta = document.getElementById(taId);
+  ta.scrollTop = ta.scrollHeight;
+}
+
+function updateGutter(taId, gutterId) {
+  const ta     = document.getElementById(taId);
+  const gutter = document.getElementById(gutterId);
+  const count  = ta.value ? ta.value.split('\n').length : 1;
+  gutter.innerHTML = Array.from({length: count}, (_, i) => `<span>${i + 1}</span>`).join('');
+  gutter.scrollTop = ta.scrollTop;
+}
+
+// ── API ──
+async function req(path, method = 'GET', body = null){
+  const key = document.getElementById('apiKey').value.trim();
+  const headers = { 'Content-Type': 'application/json' };
+  if(key) headers['X-API-Key'] = key;
+  const opts = { method, headers };
+  if(body) opts.body = JSON.stringify(body);
+  const url = apiBase + path;
+  try{
+    logInfo('Fetching ' + url);
+    const r = await fetch(url, opts);
+    const text = await r.text();
+    if(!r.ok){ logWarn('Non-OK ' + r.status + ' from ' + url); throw new Error(text || r.status); }
+    logInfo('Success from ' + url);
+    try{ return JSON.parse(text); } catch(e){ return text; }
+  } catch(e){ logError('Fetch error ' + url + ': ' + e); throw e; }
+}
+
+function initEditorFromInline(){
+  try{ if(typeof window.INIT_PHRASES === 'string' && window.INIT_PHRASES.length) document.getElementById('phrases').value = window.INIT_PHRASES; } catch(e){}
+  try{ if(typeof window.INIT_DNC    === 'string' && window.INIT_DNC.length)    document.getElementById('dnc').value    = window.INIT_DNC;    } catch(e){}
+}
+
+// ── Load / Save ──
+async function loadPhrases(){
+  try{
+    const {content} = await req('/admin/phrases');
+    document.getElementById('phrases').value = content;
+    updateGutter('phrases', 'gutterP');
+    scrollTABottom('phrases');
+    saveBackup();
+    logInfo('Loaded phrases');
+    toast('Phrases reloaded', 'success');
+  } catch(e){
+    logError('Failed to load phrases: ' + e);
+    toast('Failed to reload phrases', 'error');
+  }
+}
+async function loadDnc(){
+  try{
+    const {content} = await req('/admin/dnc');
+    document.getElementById('dnc').value = content;
+    updateGutter('dnc', 'gutterD');
+    scrollTABottom('dnc');
+    saveBackup();
+    logInfo('Loaded DNC');
+    toast('DNC reloaded', 'success');
+  } catch(e){
+    logError('Failed to load DNC: ' + e);
+    toast('Failed to reload DNC', 'error');
+  }
+}
+async function loadAll(){ logInfo('Loading all…'); await Promise.all([loadPhrases(), loadDnc()]); }
+
+// ── Auto-save ──
+const _autoTimers = {};
+const AUTO_SAVE_DELAY = 1500;
+
+function scheduleAutoSave(taId, saveFn) {
+  const btn = document.getElementById(taId === 'phrases' ? 'saveP' : 'saveD');
+  btn.classList.add('dirty');
+  clearTimeout(_autoTimers[taId]);
+  _autoTimers[taId] = setTimeout(() => saveFn(true), AUTO_SAVE_DELAY);
+}
+
+async function savePhrases(isAuto = false){
+  clearTimeout(_autoTimers['phrases']);
+  if(!isAuto) logInfo('Saving phrases…');
+  try{
+    await req('/admin/phrases', 'POST', {content: document.getElementById('phrases').value});
+    saveBackup();
+    logInfo('Saved phrases');
+    toast(isAuto ? 'Phrases auto-saved' : 'Phrases saved', 'success');
+    document.getElementById('saveP').classList.remove('dirty');
+  } catch(e){
+    logError('Save failed: ' + e);
+    toast('Failed to save phrases', 'error');
+  }
+}
+async function saveDnc(isAuto = false){
+  clearTimeout(_autoTimers['dnc']);
+  if(!isAuto) logInfo('Saving DNC…');
+  try{
+    await req('/admin/dnc', 'POST', {content: document.getElementById('dnc').value});
+    logInfo('Saved DNC');
+    toast(isAuto ? 'DNC auto-saved' : 'DNC saved', 'success');
+    document.getElementById('saveD').classList.remove('dirty');
+  } catch(e){
+    logError('Save failed: ' + e);
+    toast('Failed to save DNC', 'error');
+  }
+}
+
+// ── Backup / Restore ──
+function saveBackup() {
+  localStorage.setItem('ss_bak_phrases', document.getElementById('phrases').value);
+  localStorage.setItem('ss_bak_dnc',     document.getElementById('dnc').value);
+  localStorage.setItem('ss_bak_time',    new Date().toISOString());
+}
+
+function restoreBackup() {
+  const phrases = localStorage.getItem('ss_bak_phrases');
+  const dnc     = localStorage.getItem('ss_bak_time') && localStorage.getItem('ss_bak_dnc');
+  const time    = localStorage.getItem('ss_bak_time');
+  if(phrases === null) { toast('No restore point found', 'warn'); return; }
+  document.getElementById('phrases').value = phrases;
+  document.getElementById('dnc').value     = localStorage.getItem('ss_bak_dnc') || '';
+  updateGutter('phrases', 'gutterP'); scrollTABottom('phrases');
+  updateGutter('dnc',     'gutterD'); scrollTABottom('dnc');
+  logInfo('Restored from backup' + (time ? ' saved at ' + time : ''));
+  toast('Restored to last checkpoint' + (time ? ' · ' + new Date(time).toLocaleTimeString() : ''), 'warn');
+  scheduleAutoSave('phrases', savePhrases);
+  scheduleAutoSave('dnc', saveDnc);
+}
+
+function importJson() {
+  document.getElementById('jsonFileInput').click();
+}
+
+function handleJsonImport(file) {
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if(!data.phrases && !data.dnc) throw new Error('Missing phrases/dnc keys');
+      saveBackup();
+      if(Array.isArray(data.phrases)) {
+        document.getElementById('phrases').value = data.phrases.join('\n');
+        updateGutter('phrases', 'gutterP'); scrollTABottom('phrases');
+      }
+      if(Array.isArray(data.dnc)) {
+        document.getElementById('dnc').value = data.dnc.join('\n');
+        updateGutter('dnc', 'gutterD'); scrollTABottom('dnc');
+      }
+      logInfo('Imported from ' + file.name + (data.exported ? ' (exported ' + data.exported + ')' : ''));
+      toast('Imported ' + file.name, 'success');
+      scheduleAutoSave('phrases', savePhrases);
+      scheduleAutoSave('dnc', saveDnc);
+    } catch(err) {
+      logError('Import failed: ' + err);
+      toast('Invalid JSON — expected {phrases:[], dnc:[]}', 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── Bulk actions ──
+function normalize(){
+  ['phrases','dnc'].forEach(id => {
+    const ta = document.getElementById(id);
+    const lines = ta.value.split('\n').map(l => l.trim().toLowerCase()).filter(Boolean);
+    ta.value = [...new Set(lines)].join('\n');
+  });
+  updateGutter('phrases', 'gutterP');
+  updateGutter('dnc', 'gutterD');
+  scrollTABottom('phrases');
+  scrollTABottom('dnc');
+  logInfo('Normalized (lowercase + dedupe)');
+  toast('Both lists normalized', 'info');
+}
+
+function exportJson(){
+  const data = {
+    phrases:  document.getElementById('phrases').value.split('\n').map(l => l.trim()).filter(Boolean),
+    dnc:      document.getElementById('dnc').value.split('\n').map(l => l.trim()).filter(Boolean),
+    exported: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), {href: url, download: 'ss-whisper-export.json'});
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  logInfo('Exported JSON');
+  toast('JSON exported', 'info');
+}
+
+function clearLog(){ document.getElementById('log').textContent = ''; logInfo('Cleared log'); }
+
+function downloadLog(){
+  const p     = document.getElementById('log');
+  const lines = Array.from(p.children).map(el => el.textContent).reverse().join('\n');
+  const blob  = new Blob([lines], {type: 'text/plain'});
+  const url   = URL.createObjectURL(blob);
+  const a     = Object.assign(document.createElement('a'), {href: url, download: 'ss-whisper-log.txt'});
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  logInfo('Downloaded log');
+}
+
+function addLine(inputId, taId, gutterId){
+  const input = document.getElementById(inputId);
+  const val   = input.value.trim();
+  if(!val) return;
+  const ta    = document.getElementById(taId);
+  ta.value    = ta.value ? ta.value.trimEnd() + '\n' + val : val;
+  input.value = '';
+  updateGutter(taId, gutterId);
+  scrollTABottom(taId);
+  logInfo('Added to ' + taId + ': ' + val);
+  scheduleAutoSave(taId, taId === 'phrases' ? savePhrases : saveDnc);
+}
+
+// Auth guard — redirect to login if no valid session
+fetch('/auth/verify', { credentials: 'include' })
+  .then(r => { if (!r.ok) window.location.replace('/login.html'); })
+  .catch(() => window.location.replace('/login.html'));
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+  window.location.replace('/login.html');
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  // Button wiring
+  document.getElementById('loadP').addEventListener('click', loadPhrases);
+  document.getElementById('saveP').addEventListener('click', savePhrases);
+  document.getElementById('loadD').addEventListener('click', loadDnc);
+  document.getElementById('saveD').addEventListener('click', saveDnc);
+  document.getElementById('normalize').addEventListener('click', normalize);
+  document.getElementById('exportJson').addEventListener('click', exportJson);
+  document.getElementById('importJson').addEventListener('click', importJson);
+  document.getElementById('restoreBtn').addEventListener('click', restoreBackup);
+  document.getElementById('jsonFileInput').addEventListener('change', e => { handleJsonImport(e.target.files[0]); e.target.value = ''; });
+  document.getElementById('downloadLog').addEventListener('click', downloadLog);
+  document.getElementById('clearLog').addEventListener('click', clearLog);
+  document.getElementById('addPhraseBtn').addEventListener('click', () => addLine('addPhraseInput', 'phrases', 'gutterP'));
+  document.getElementById('addDncBtn').addEventListener('click',    () => addLine('addDncInput',    'dnc',     'gutterD'));
+  document.getElementById('addPhraseInput').addEventListener('keydown', e => { if(e.key==='Enter') addLine('addPhraseInput','phrases','gutterP'); });
+  document.getElementById('addDncInput').addEventListener('keydown',    e => { if(e.key==='Enter') addLine('addDncInput',   'dnc',    'gutterD'); });
+
+  // Gutter sync
+  const phrasesTA = document.getElementById('phrases');
+  const dncTA     = document.getElementById('dnc');
+  const gutterP   = document.getElementById('gutterP');
+  const gutterD   = document.getElementById('gutterD');
+  phrasesTA.addEventListener('input',  () => { updateGutter('phrases', 'gutterP'); scheduleAutoSave('phrases', savePhrases); });
+  phrasesTA.addEventListener('scroll', () => { gutterP.scrollTop = phrasesTA.scrollTop; });
+  dncTA.addEventListener('input',  () => { updateGutter('dnc', 'gutterD'); scheduleAutoSave('dnc', saveDnc); });
+  dncTA.addEventListener('scroll', () => { gutterD.scrollTop = dncTA.scrollTop; });
+  updateGutter('phrases', 'gutterP');
+  updateGutter('dnc', 'gutterD');
+
+  initEditorFromInline();
+  loadAll();
+});
+</script>
+</body>
+</html>

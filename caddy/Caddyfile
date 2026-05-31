@@ -1,0 +1,53 @@
+# Caddyfile - trimmed and cleaned
+vm.karims.dev, :80 {
+	root * /usr/share/caddy
+	file_server browse
+
+	# Proxy /auth and /admin to voicemail-api
+	reverse_proxy /auth/* 127.0.0.1:8808 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	reverse_proxy /admin/* 127.0.0.1:8808 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+
+	reverse_proxy /book-demo 127.0.0.1:8808 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+agent.karims.dev {
+	reverse_proxy 127.0.0.1:18789 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+9router.karims.dev {
+	reverse_proxy 127.0.0.1:20128
+}
+
+n8n.karims.dev {
+	reverse_proxy 127.0.0.1:5678
+}
+
+ss.karims.dev {
+	reverse_proxy 127.0.0.1:8808 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		transport http {
+			dial_timeout 120s
+			read_timeout 300s
+			write_timeout 300s
+		}
+	}
+}

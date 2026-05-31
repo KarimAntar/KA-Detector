@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>API Docs — KA Voicemail</title>
+<link rel="icon" href="/favicon.ico" sizes="any"/>
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:    #060a14;
+  --bg2:   #0b1221;
+  --blue:  #0066ff;
+  --blue2: #0088ff;
+  --text:  #ffffff;
+  --muted: #9ca3af;
+  --border: rgba(255,255,255,0.09);
+  --card-bg: rgba(255,255,255,0.024);
+  --card-border: rgba(255,255,255,0.07);
+  --green: #34d399;
+  --cyan:  #4cd7f6;
+  --purple:#a78bfa;
+  --red:   #f87171;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', system-ui, sans-serif; overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ── HEADER ── */
+header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 0 5%;
+  height: 68px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(6,10,20,0.88);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.055);
+}
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.logo-img { height: 48px; width: auto; flex-shrink: 0; }
+.logo-name { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.85rem; color: #dfe2f3; letter-spacing: 0.04em; white-space: nowrap; }
+nav { display: flex; align-items: center; gap: 2rem; }
+nav a { font-size: 0.9rem; font-weight: 500; color: var(--muted); text-decoration: none; transition: color 0.18s; }
+nav a:hover { color: #fff; }
+nav a.active { color: #fff; border-bottom: 1px solid rgba(100,160,255,0.6); padding-bottom: 2px; }
+.btn-nav {
+  padding: 0.5rem 1.2rem; border-radius: 8px; font-size: 0.875rem; font-weight: 600;
+  color: #fff; background: linear-gradient(to right, #0055ff, #0088ff);
+  border: none; cursor: pointer; font-family: 'Space Grotesk', sans-serif;
+  text-decoration: none; transition: all 0.2s;
+  box-shadow: 0 0 20px rgba(0,100,255,0.35);
+}
+.btn-nav:hover { box-shadow: 0 0 32px rgba(0,130,255,0.55); }
+
+/* ── LAYOUT ── */
+.docs-wrap {
+  display: flex; gap: 2.5rem; max-width: 1400px; margin: 0 auto;
+  padding: 100px 5% 5rem; flex: 1; width: 100%;
+}
+
+/* ── SIDEBAR ── */
+.sidebar { width: 220px; flex-shrink: 0; }
+.sidebar-inner {
+  position: sticky; top: 88px;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 14px; padding: 1.2rem;
+}
+.sidebar-label {
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 1rem;
+}
+.sidebar nav { display: flex; flex-direction: column; gap: 2px; align-items: stretch; }
+.sidebar-link {
+  display: block; padding: 6px 10px; border-left: 2px solid rgba(255,255,255,0.08);
+  color: var(--muted); font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;
+  text-decoration: none; transition: all 0.18s; border-radius: 0 6px 6px 0;
+  text-align: left;
+}
+.sidebar-link:hover { color: #fff; border-left-color: rgba(100,160,255,0.5); }
+.sidebar-link.active { color: #adc6ff; border-left-color: #4d8eff; }
+
+/* ── MAIN CONTENT ── */
+.docs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3.5rem; padding-bottom: 4rem; }
+
+/* ── SECTIONS ── */
+.doc-section { display: flex; flex-direction: column; gap: 1.2rem; }
+.section-divider { border: none; border-top: 1px solid rgba(255,255,255,0.06); }
+h2 { font-size: 1.65rem; font-weight: 700; letter-spacing: -0.02em; color: #fff; }
+.section-desc { font-size: 1rem; color: var(--muted); line-height: 1.7; max-width: 680px; }
+
+/* ── BADGES ── */
+.method-badge {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 5px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+}
+.method-post { background: rgba(77,142,255,0.12); color: #adc6ff; border: 1px solid rgba(77,142,255,0.3); }
+.method-get  { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
+.method-err  { background: rgba(248,113,113,0.1); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+.endpoint-title { font-size: 1rem; font-weight: 600; color: #dfe2f3; font-family: 'JetBrains Mono', monospace; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 14px; padding: 1.4rem; position: relative; overflow: hidden;
+}
+.card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,150,255,0.18),transparent); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.auth-icon { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.75rem; }
+.icon-circle {
+  width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.auth-title { font-size: 0.95rem; font-weight: 700; color: #fff; }
+.auth-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.55; margin-bottom: 0.8rem; }
+
+/* ── CODE ── */
+.code-block {
+  background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; padding: 1rem 1.2rem;
+  font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+  line-height: 1.65; overflow-x: auto; color: #dfe2f3; white-space: pre;
+}
+.code-block .k { color: #adc6ff; }
+.code-block .s { color: #34d399; }
+.code-block .n { color: #4cd7f6; }
+.code-block .p { color: #c2c6d6; }
+.code-label {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem;
+}
+
+/* ── PARAM TABLE ── */
+.param-table { width: 100%; border-collapse: collapse; }
+.param-table th {
+  text-align: left; padding: 9px 14px;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+  border-bottom: 1px solid var(--card-border);
+}
+.param-table td { padding: 11px 14px; font-size: 13.5px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+.param-table tr:last-child td { border-bottom: none; }
+.param-name { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; color: #adc6ff; }
+.param-type { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--cyan); }
+.param-req  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--green); }
+.param-opt  { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+.param-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+code { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; color: var(--cyan); background: rgba(76,215,246,0.1); padding: 1px 5px; border-radius: 4px; }
+
+/* ── REVEAL ── */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.active { opacity: 1; transform: translateY(0); }
+
+/* ── FOOTER ── */
+footer {
+  background: #030610; border-top: 1px solid rgba(255,255,255,0.045);
+  padding: 1.75rem 5%;
+}
+.foot-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+.foot-copy { font-size: 0.72rem; color: #283040; }
+.foot-links { display: flex; gap: 1.4rem; list-style: none; }
+.foot-links a { font-size: 0.78rem; color: #3a4a60; text-decoration: none; transition: color 0.18s; }
+.foot-links a:hover { color: #fff; }
+
+@media(max-width: 900px) {
+  .docs-wrap { flex-direction: column; padding-top: 90px; }
+  .sidebar { width: 100%; }
+  .sidebar-inner { position: static; }
+  .sidebar nav { flex-direction: row; flex-wrap: wrap; gap: 0.25rem; }
+  .sidebar-link { border-left: none; border-bottom: 2px solid rgba(255,255,255,0.08); border-radius: 6px 6px 0 0; padding: 5px 10px; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+@media(max-width: 640px) {
+  nav { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo">
+    <img src="/logo.png" alt="KA Voicemail" class="logo-img"/>
+    <span class="logo-name">KA Voicemail</span>
+  </a>
+  <nav>
+    <a href="/">Home</a>
+    <a href="docs.html" class="active">Docs</a>
+    <a href="health.html">API Status</a>
+  </nav>
+  <a href="/#pricing" class="btn-nav">Get Started</a>
+</header>
+
+<div class="docs-wrap">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+      <div class="sidebar-label">On this page</div>
+      <nav style="display:flex;flex-direction:column;gap:2px;align-items:stretch;">
+        <a class="sidebar-link active" href="#overview">Overview</a>
+        <a class="sidebar-link" href="#auth">Authentication</a>
+        <a class="sidebar-link" href="#voicemail">POST /voicemail</a>
+        <a class="sidebar-link" href="#voicemail-json">POST /voicemail-json</a>
+        <a class="sidebar-link" href="#transcribe">POST /transcribe</a>
+        <a class="sidebar-link" href="#health">GET /health</a>
+        <a class="sidebar-link" href="#errors">Error Codes</a>
+      </nav>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="docs-main">
+
+    <!-- Overview -->
+    <section id="overview" class="doc-section reveal">
+      <h2>Overview</h2>
+      <p class="section-desc">
+        The KA Voicemail API detects voicemail greetings in real-time audio using Whisper.cpp transcription and phrase matching. Submit audio chunks during a live call — get back a detection decision in under 2 seconds.
+      </p>
+      <div>
+        <div class="code-label">Base URL</div>
+        <div class="code-block">https://ss.karims.dev</div>
+      </div>
+    </section>
+
+    <hr class="section-divider"/>
+
+    <!-- Authentication -->
+    <section id="auth" class="doc-section reveal">
+      <h2>Authentication</h2>
+      <p class="section-desc">All endpoints require authentication via one of the following methods.</p>
+      <div class="grid-2">
+        <div class="card">
+          <div class="auth-icon">
+            <div class="icon-circle" style="background:rgba(77,142,255,0.12);border:1px solid rgba(77,142,255,0.2);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#adc6ff" stroke-width="2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            </div>
+            <span class="auth-title">API Key</span>
+          </div>
+          <p class="auth-desc">Send as a header or Bearer token:</p>
+          <div class="code-block" style="font-size:11.5px;">X-API-Key: YOUR_API_KEY
+<span style="color:var(--muted);">— or —</span>
+Authorization: Bearer YOUR_API_KEY</div>
+        </div>
+        <div class="card">
+          <div class="auth-icon">
+            <div class="icon-circle" style="background:rgba(76,215,246,0.1);border:1px solid rgba(76,215,246,0.2);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4cd7f6" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            </div>
+            <span class="auth-title">Basic Auth</span>
+          </div>
+          <p class="auth-desc">Standard HTTP Basic Authentication:</p>
+          <div class="code-block" style="font-size:11.5px;">Authorization: Basic base64(user:pass)</div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-divider"/>
+
+    <!-- POST /voicemail -->
+    <section id="voicemail" class="doc-section reveal">
+      <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+        <span class="method-badge method-post">POST</span>
+        <span class="endpoint-title">/voicemail</span>
+      </div>
+      <p class="section-desc">Upload an audio file. Returns real-time voicemail detection result with matched phrases and dead air tracking.</p>
+
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="param-table">
+          <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">audio</span></td><td><span class="param-type">file</span></td><td><span class="param-req">yes</span></td><td class="param-desc">WAV audio file to analyze</td></tr>
+            <tr><td><span class="param-name">language</span></td><td><span class="param-type">string</span></td><td><span class="param-opt">no</span></td><td class="param-desc">Language code (default: <code>en</code>)</td></tr>
+            <tr><td><span class="param-name">decision_window_ms</span></td><td><span class="param-type">int</span></td><td><span class="param-opt">no</span></td><td class="param-desc">Audio duration to analyze in ms (default: <code>2000</code>)</td></tr>
+            <tr><td><span class="param-name">session_id</span></td><td><span class="param-type">string</span></td><td><span class="param-opt">no</span></td><td class="param-desc">Unique call identifier for dead air tracking</td></tr>
+            <tr><td><span class="param-name">dead_air_threshold</span></td><td><span class="param-type">int</span></td><td><span class="param-opt">no</span></td><td class="param-desc">Consecutive blank chunks before dead_air=true (default: <code>3</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="code-label">Request</div>
+          <div class="code-block"><span class="k">curl</span> -s -X POST https://ss.karims.dev/voicemail \
+  -H <span class="s">"X-API-Key: YOUR_KEY"</span> \
+  -F <span class="s">"audio=@call.wav"</span> \
+  -F <span class="s">"session_id=call-123"</span> \
+  -F <span class="s">"decision_window_ms=2000"</span></div>
+        </div>
+        <div>
+          <div class="code-label">Response</div>
+          <div class="code-block"><span class="p">{</span>
+  <span class="n">"text"</span><span class="p">:</span> <span class="s">"please leave a message"</span><span class="p">,</span>
+  <span class="n">"voicemail"</span><span class="p">:</span> <span class="k">true</span><span class="p">,</span>
+  <span class="n">"matched_phrases"</span><span class="p">:</span> [<span class="s">"leave a message"</span>]<span class="p">,</span>
+  <span class="n">"dead_air"</span><span class="p">:</span> <span class="k">false</span><span class="p">,</span>
+  <span class="n">"session_id"</span><span class="p">:</span> <span class="s">"call-123"</span><span class="p">,</span>
+  <span class="n">"language"</span><span class="p">:</span> <span class="s">"en"</span><span class="p">,</span>
+  <span class="n">"decision_window_ms"</span><span class="p">:</span> <span class="k">2000</span>
+<span class="p">}</span></div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-divider"/>
+
+    <!-- POST /voicemail-json -->
+    <section id="voicemail-json" class="doc-section reveal">
+      <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+        <span class="method-badge method-post">POST</span>
+        <span class="endpoint-title">/voicemail-json</span>
+      </div>
+      <p class="section-desc">Send audio as a base64-encoded string in a JSON body. Also supports passing pre-transcribed text directly. Includes DNC (Do Not Call) phrase detection.</p>
+
+      <div class="grid-2">
+        <div>
+          <div class="code-label">Request Body</div>
+          <div class="code-block"><span class="p">{</span>
+  <span class="n">"audio_base64"</span><span class="p">:</span> <span class="s">"UklGRi..."</span><span class="p">,</span>
+  <span class="n">"language"</span><span class="p">:</span> <span class="s">"en"</span><span class="p">,</span>
+  <span class="n">"decision_window_ms"</span><span class="p">:</span> <span class="k">2000</span><span class="p">,</span>
+  <span class="n">"session_id"</span><span class="p">:</span> <span class="s">"call-123"</span><span class="p">,</span>
+  <span class="n">"dead_air_threshold"</span><span class="p">:</span> <span class="k">3</span><span class="p">,</span>
+  <span class="n">"chunk_index"</span><span class="p">:</span> <span class="k">0</span>
+<span class="p">}</span></div>
+        </div>
+        <div>
+          <div class="code-label">Response</div>
+          <div class="code-block"><span class="p">{</span>
+  <span class="n">"text"</span><span class="p">:</span> <span class="s">"please leave a message"</span><span class="p">,</span>
+  <span class="n">"voicemail"</span><span class="p">:</span> <span class="k">true</span><span class="p">,</span>
+  <span class="n">"matched_phrases"</span><span class="p">:</span> [<span class="s">"leave a message"</span>]<span class="p">,</span>
+  <span class="n">"dnc"</span><span class="p">:</span> <span class="k">false</span><span class="p">,</span>
+  <span class="n">"dnc_phrases"</span><span class="p">:</span> []<span class="p">,</span>
+  <span class="n">"dead_air"</span><span class="p">:</span> <span class="k">false</span><span class="p">,</span>
+  <span class="n">"chunk_index"</span><span class="p">:</span> <span class="k">0</span>
+<span class="p">}</span></div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-divider"/>
+
+    <!-- POST /transcribe -->
+    <section id="transcribe" class="doc-section reveal">
+      <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+        <span class="method-badge method-post">POST</span>
+        <span class="endpoint-title">/transcribe</span>
+      </div>
+      <p class="section-desc">Transcribe audio to text without voicemail detection. Returns full transcript and segment-level detail.</p>
+
+      <div class="grid-2">
+        <div>
+          <div class="code-label">Request</div>
+          <div class="code-block"><span class="k">curl</span> -s -X POST https://ss.karims.dev/transcribe \
+  -H <span class="s">"X-API-Key: YOUR_KEY"</span> \
+  -F <span class="s">"audio=@audio.wav"</span> \
+  -F <span class="s">"language=en"</span></div>
+        </div>
+        <div>
+          <div class="code-label">Response</div>
+          <div class="code-block"><span class="p">{</span>
+  <span class="n">"text"</span><span class="p">:</span> <span class="s">"Hi, you've reached John..."</span><span class="p">,</span>
+  <span class="n">"language"</span><span class="p">:</span> <span class="s">"en"</span><span class="p">,</span>
+  <span class="n">"segments"</span><span class="p">:</span> [
+    <span class="p">{</span> <span class="n">"text"</span><span class="p">:</span> <span class="s">"Hi, you've reached John."</span> <span class="p">}</span>
+  ]
+<span class="p">}</span></div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-divider"/>
+
+    <!-- GET /health -->
+    <section id="health" class="doc-section reveal">
+      <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+        <span class="method-badge method-get">GET</span>
+        <span class="endpoint-title">/health</span>
+      </div>
+      <p class="section-desc">Returns the API health status. Use this to verify the service is running.</p>
+      <div class="grid-2">
+        <div>
+          <div class="code-label">Request</div>
+          <div class="code-block"><span class="k">curl</span> https://ss.karims.dev/health</div>
+        </div>
+        <div>
+          <div class="code-label">Response</div>
+          <div class="code-block"><span class="p">{</span> <span class="n">"status"</span><span class="p">:</span> <span class="s">"ok"</span> <span class="p">}</span></div>
+        </div>
+      </div>
+      <div>
+        <a href="health.html" style="display:inline-flex;align-items:center;gap:0.4rem;font-size:0.85rem;color:var(--green);text-decoration:none;transition:opacity 0.18s;" onmouseover="this.style.opacity=0.7" onmouseout="this.style.opacity=1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          View live health dashboard →
+        </a>
+      </div>
+    </section>
+
+    <hr class="section-divider"/>
+
+    <!-- Error Codes -->
+    <section id="errors" class="doc-section reveal">
+      <h2>Error Codes</h2>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <table class="param-table">
+          <thead><tr><th>Code</th><th>Meaning</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="method-badge method-err">401</span></td>
+              <td style="font-size:13.5px;font-weight:600;color:#fff;">Unauthorized</td>
+              <td class="param-desc">Missing or invalid API key / Basic Auth credentials.</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-err">400</span></td>
+              <td style="font-size:13.5px;font-weight:600;color:#fff;">Bad Request</td>
+              <td class="param-desc">Missing required fields (e.g. no audio file or audio_base64).</td>
+            </tr>
+            <tr>
+              <td><span class="method-badge method-err">500</span></td>
+              <td style="font-size:13.5px;font-weight:600;color:#fff;">Internal Server Error</td>
+              <td class="param-desc">Transcription failed or whisper.cpp encountered an error.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <div class="foot-inner">
+    <a href="/" class="logo" style="opacity:0.55;">
+      <img src="/logo.png" alt="KA Voicemail" class="logo-img" style="height:40px;"/>
+      <span class="logo-name">KA Voicemail</span>
+    </a>
+    <p class="foot-copy">© 2026 KA Voicemail API. All rights reserved.</p>
+    <ul class="foot-links">
+      <li><a href="health.html">API Status</a></li>
+      <li><a href="docs.html">Docs</a></li>
+      <li><a href="/#pricing">Pricing</a></li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('active'); observer.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  /* ── Scroll-spy: highlight the section whose top is closest above
+       the trigger line (= fixed header height + small buffer) ── */
+  const TRIGGER = 96; // px from viewport top — just below the fixed header
+  const sectionEls = [...document.querySelectorAll('section[id]')];
+  const linkMap = {};
+  document.querySelectorAll('.sidebar-link').forEach(l => {
+    linkMap[l.getAttribute('href').slice(1)] = l;
+  });
+
+  function updateActive() {
+    let activeId = sectionEls[0]?.id;
+
+    sectionEls.forEach(s => {
+      if (s.getBoundingClientRect().top <= TRIGGER) activeId = s.id;
+    });
+
+    // If scrolled to bottom of page, force-highlight the last section
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 32) {
+      activeId = sectionEls[sectionEls.length - 1]?.id;
+    }
+
+    Object.values(linkMap).forEach(l => l.classList.remove('active'));
+    if (activeId && linkMap[activeId]) linkMap[activeId].classList.add('active');
+  }
+
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+</script>
+</body>
+</html>

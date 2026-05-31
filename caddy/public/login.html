@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sign In — SS Voicemail API</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: "class",
+  theme: {
+    extend: {
+      colors: {
+        "primary": "#adc6ff", "secondary": "#4cd7f6", "tertiary": "#4edea3",
+        "on-primary": "#002e6a", "surface": "#0f131f",
+        "surface-container": "#1b1f2c", "surface-container-lowest": "#0a0e1a",
+        "surface-container-high": "#262a37", "surface-variant": "#313442",
+        "on-surface": "#dfe2f3", "on-surface-variant": "#c2c6d6",
+        "outline": "#8c909f", "outline-variant": "#424754",
+        "error": "#ffb4ab", "background": "#0f131f",
+        "primary-container": "#4d8eff",
+      }
+    }
+  }
+}
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Geist', sans-serif; background: #0a0e1a; color: #dfe2f3; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+
+  /* Animated background */
+  .bg-orb { position: fixed; border-radius: 50%; filter: blur(80px); pointer-events: none; z-index: 0; }
+  .bg-orb-1 { width: 600px; height: 600px; background: radial-gradient(circle, rgba(77,142,255,0.12) 0%, transparent 70%); top: -200px; left: 50%; transform: translateX(-50%); animation: float1 8s ease-in-out infinite; }
+  .bg-orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, rgba(76,215,246,0.08) 0%, transparent 70%); bottom: -100px; right: -100px; animation: float2 10s ease-in-out infinite; }
+
+  @keyframes float1 { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(-30px)} }
+  @keyframes float2 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-20px)} }
+
+  /* Card */
+  .card {
+    position: relative; z-index: 1;
+    background: rgba(255,255,255,0.03);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-radius: 20px;
+    padding: 40px;
+    width: 100%; max-width: 400px;
+    margin: 16px;
+  }
+  .card::before {
+    content: ""; position: absolute; inset: 0; border-radius: 20px; padding: 1px;
+    background: linear-gradient(135deg, rgba(173,198,255,0.35) 0%, rgba(76,215,246,0.15) 50%, transparent 100%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+  }
+
+  /* Input */
+  .input-wrap { position: relative; }
+  .input-wrap .input-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: #8c909f; font-size: 20px; pointer-events: none;
+    font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0, 'wght' 300;
+  }
+  input[type=text], input[type=password] {
+    width: 100%; padding: 13px 14px 13px 44px;
+    background: rgba(255,255,255,0.05); border: 1px solid #424754;
+    border-radius: 10px; color: #dfe2f3; font-family: 'Geist', sans-serif; font-size: 15px;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  input:focus { border-color: #adc6ff; box-shadow: 0 0 0 3px rgba(173,198,255,0.12); }
+  input::placeholder { color: #8c909f; }
+
+  /* Toggle password visibility */
+  .toggle-pw {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; color: #8c909f;
+    font-family: 'Material Symbols Outlined'; font-size: 20px;
+    font-variation-settings: 'FILL' 0, 'wght' 300;
+    padding: 0; line-height: 1; transition: color 0.2s;
+  }
+  .toggle-pw:hover { color: #adc6ff; }
+
+  /* Button */
+  .btn-primary {
+    width: 100%; padding: 13px;
+    background: #adc6ff; color: #002e6a;
+    border: none; border-radius: 10px;
+    font-family: 'Geist', sans-serif; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-primary:hover { background: #c5d5ff; box-shadow: 0 0 24px rgba(173,198,255,0.35); }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  /* Error */
+  .error-box {
+    display: none; align-items: center; gap: 8px;
+    background: rgba(255,180,171,0.08); border: 1px solid rgba(255,180,171,0.25);
+    border-radius: 8px; padding: 10px 14px; color: #ffb4ab; font-size: 14px;
+  }
+  .error-box.show { display: flex; }
+
+  /* Spinner */
+  .spinner { width: 18px; height: 18px; border: 2px solid rgba(0,46,106,0.3); border-top-color: #002e6a; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Logo */
+  .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+  .logo-icon { font-family: 'Material Symbols Outlined'; font-size: 32px; color: #adc6ff; font-variation-settings: 'FILL' 1; }
+  .logo-text { font-size: 20px; font-weight: 700; color: #dfe2f3; letter-spacing: -0.02em; }
+
+  /* Waveform divider */
+  .waveform { width: 100%; height: 32px; margin: 24px 0; opacity: 0.4; }
+</style>
+</head>
+<body>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <div class="card">
+    <!-- Logo -->
+    <div class="logo">
+      <span class="logo-icon">voicemail</span>
+      <span class="logo-text">SS Voicemail API</span>
+    </div>
+
+    <h1 style="font-size:24px;font-weight:700;margin:0 0 6px;color:#dfe2f3;">Admin Sign In</h1>
+    <p style="font-size:14px;color:#8c909f;margin:0 0 28px;">Enter your password to access the admin panel.</p>
+
+    <!-- Animated waveform -->
+    <svg class="waveform" viewBox="0 0 400 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="wg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#3b82f6"/>
+          <stop offset="50%" stop-color="#06b6d4"/>
+          <stop offset="100%" stop-color="#3b82f6"/>
+        </linearGradient>
+      </defs>
+      <path d="M0 16 Q25 4 50 16 T100 16 T150 16 T200 16 T250 16 T300 16 T350 16 T400 16"
+            stroke="url(#wg)" stroke-width="2" stroke-linecap="round">
+        <animate attributeName="d" dur="3s" repeatCount="indefinite"
+          values="M0 16 Q25 4 50 16 T100 16 T150 16 T200 16 T250 16 T300 16 T350 16 T400 16;
+                  M0 16 Q25 28 50 16 T100 16 T150 16 T200 16 T250 16 T300 16 T350 16 T400 16;
+                  M0 16 Q25 4 50 16 T100 16 T150 16 T200 16 T250 16 T300 16 T350 16 T400 16"/>
+      </path>
+      <path d="M0 16 Q25 8 50 16 T100 16 T150 16 T200 16 T250 16 T300 16 T350 16 T400 16"
+            stroke="url(#wg)" stroke-width="1" stroke-opacity="0.4" stroke-linecap="round">
+        <animate attributeName="d" dur="4s" repeatCount="indefinite"
+          values="M0 16 Q25 8 50 16 T100 16 T150 16 T200 16 T250 16 T300 16 T350 16 T400 16;
+                  M0 16 Q25 24 50 16 T100 16 T150 16 T200 16 T250 16 T300 16 T350 16 T400 16;
+                  M0 16 Q25 8 50 16 T100 16 T150 16 T200 16 T250 16 T300 16 T350 16 T400 16"/>
+      </path>
+    </svg>
+
+    <!-- Form -->
+    <form id="login-form" onsubmit="return false;" style="display:flex;flex-direction:column;gap:14px;">
+
+      <!-- Error -->
+      <div class="error-box" id="error-box">
+        <span class="material-symbols-outlined" style="font-size:18px;">error</span>
+        <span id="error-msg">Invalid username or password.</span>
+      </div>
+
+      <!-- Password -->
+      <div class="input-wrap">
+        <span class="input-icon">lock</span>
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password" autofocus/>
+        <button type="button" class="toggle-pw" id="toggle-pw" onclick="togglePw()">visibility</button>
+      </div>
+
+      <!-- Submit -->
+      <button type="submit" class="btn-primary" id="submit-btn" onclick="doLogin()">
+        <div class="spinner" id="spinner"></div>
+        <span id="btn-label">Sign In</span>
+        <span class="material-symbols-outlined" id="btn-icon" style="font-size:18px;font-variation-settings:'FILL' 0;">arrow_forward</span>
+      </button>
+
+    </form>
+
+    <p style="margin:20px 0 0;text-align:center;font-size:12px;color:#424754;font-family:'JetBrains Mono',monospace;">
+      ss.karims.dev · admin panel
+    </p>
+  </div>
+
+<script>
+  // Redirect if already logged in
+  fetch('/auth/verify', { credentials: 'include' })
+    .then(r => { if (r.ok) window.location.replace('/ss.html'); })
+    .catch(() => {});
+
+  function togglePw() {
+    const inp = document.getElementById('password');
+    const btn = document.getElementById('toggle-pw');
+    if (inp.type === 'password') { inp.type = 'text'; btn.textContent = 'visibility_off'; }
+    else { inp.type = 'password'; btn.textContent = 'visibility'; }
+  }
+
+  function setLoading(on) {
+    const btn = document.getElementById('submit-btn');
+    const spinner = document.getElementById('spinner');
+    const label = document.getElementById('btn-label');
+    const icon = document.getElementById('btn-icon');
+    btn.disabled = on;
+    spinner.style.display = on ? 'block' : 'none';
+    label.textContent = on ? 'Signing in…' : 'Sign In';
+    icon.style.display = on ? 'none' : '';
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('error-box');
+    document.getElementById('error-msg').textContent = msg;
+    box.classList.add('show');
+  }
+
+  function hideError() {
+    document.getElementById('error-box').classList.remove('show');
+  }
+
+  async function doLogin() {
+    hideError();
+    const password = document.getElementById('password').value;
+    if (!password) { showError('Please enter your password.'); return; }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        window.location.replace('/ss.html');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showError(data.detail || 'Invalid password.');
+        setLoading(false);
+      }
+    } catch (e) {
+      showError('Network error. Please try again.');
+      setLoading(false);
+    }
+  }
+
+  // Enter key submits
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

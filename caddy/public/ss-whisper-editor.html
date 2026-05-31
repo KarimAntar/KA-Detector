@@ -1,0 +1,264 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SS-Whisper Phrase & DNC Editor</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:linear-gradient(180deg,#071028 0%, #051026 100%); color:#e6eef6; margin:0; padding:28px}
+    .container{max-width:1100px;margin:0 auto}
+    header{display:flex;gap:16px;align-items:center;margin-bottom:18px}
+    h1{font-size:20px;margin:0}
+    .sub{color:var(--muted);font-size:13px}
+    .row{display:flex;gap:18px}
+    .col{flex:1}
+    .card{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
+    textarea{width:100%;height:360px;background:var(--glass);border:1px solid rgba(255,255,255,0.04);color:inherit;padding:12px;border-radius:8px;font-family:monospace;font-size:13px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    .controls{display:flex;gap:8px;align-items:center;margin-top:8px}
+    .btn{background:var(--accent);color:#042027;padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(255,255,255,0.04)}
+    input[type=text]{padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    footer{color:var(--muted);font-size:13px;margin-top:12px}
+    .flex-between{display:flex;justify-content:space-between;align-items:center}
+  </style>
+</head>
+<body>
+  <div class="container"> 
+    <header>
+      <div>
+        <h1>SS‑Whisper Phrase & DNC Editor</h1>
+        <div class="sub">Edit voicemail phrases and DNC lists. Changes are saved to server files and take effect immediately.</div>
+      </div>
+      <div style="margin-left:auto;text-align:right"> 
+        <div style="margin-bottom:6px"><label class="sub">API Key (auto‑filled)</label>
+          <input id="apiKey" type="text" style="width:360px" / value="5aa1a3c98a02d193d675b304e64504d9"></div>
+        <div class="sub">Use this key to authorize edits. Keys are not shown to other users of this page.</div>
+      </div>
+    </header>
+
+    <div class="row"> 
+      <div class="col card"> 
+        <div class="flex-between"><div><strong>Voicemail phrases</strong><div class="sub">/etc/ss-whisper/phrases.txt</div></div>
+          <div class="controls"><button id="loadP" class="btn ghost">Reload</button><button id="saveP" class="btn">Save</button></div></div>
+        <label>Editor (one phrase per line)</label>
+        <textarea id="phrases">please leave a message
+leave a message
+after the tone
+at the tone
+record your message
+your call has been forwarded
+not available
+cannot take your call
+can't take your call
+away from the phone
+voicemail
+mailbox
+mailbox is full
+sorry i missed your call
+you have reached
+the person you are calling
+please leave your name
+please leave your number
+press any key
+press any button
+press any number
+press any digit
+press any key to continue
+press any button to continue
+to continue
+i will call you back shortly
+please stay on the line
+i can't answer your call now
+please leave a detailed message
+i couldn't hear you, please leave a message
+leave your name
+please hung up
+you reached the voice mail
+voice mail
+thanks please stay on the line
+as soon as possible thank you
+thank you for calling
+thanks for calling
+i couldn't hear you please try again
+your number or a detailed message
+and i will get back to you
+i will get back
+after the beep
+get back to you
+i'll back to you
+i'll text you right back
+we have a message
+or text me or information and i will
+brief message and we will be sure to
+please be sure to leave
+press 1 to record your
+press 1
+[beep]
+(beep)
+[music]
+(upbeat music)
+hello, please
+(bell rings)
+[bell ringing]
+please feel free to contact
+thank you so much and have a great day
+or because of a bad connection
+i will call you
+[bell]
+have a wonderful day
+turn the call
+return the call
+i'll get back with you
+one for more options
+thank you very much for calling
+to send a
+leave a call back
+when you've finished recording
+hang up or press
+for further options
+</textarea>
+      </div>
+
+      <div class="col card"> 
+        <div class="flex-between"><div><strong>DNC phrases</strong><div class="sub">/etc/ss-whisper/dnc.txt</div></div>
+          <div class="controls"><button id="loadD" class="btn ghost">Reload</button><button id="saveD" class="btn">Save</button></div></div>
+        <label>Editor (one phrase per line)</label>
+        <textarea id="dnc">please remove me from the call list
+please remove me from the calling list
+please remove me from
+remove me from your list
+remove me
+your list
+do not call
+stop calling
+call list
+marketing list
+please do not call
+lose my number</textarea>
+      </div>
+    </div>
+
+    <div style="margin-top:14px" class="card"> 
+      <div class="flex-between"><div class="sub">Actions</div>
+        <div>
+          <button id="exportJson" class="btn ghost">Export JSON</button>
+          <button id="normalize" class="btn ghost">Normalize (lowercase & dedupe)</button>
+        </div>
+      </div>
+      <div style="margin-top:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-weight:600;color:var(--muted)">Actions</div>
+        <div style="display:flex;gap:8px">
+          <button id="downloadLog" class="btn ghost">Download Log</button>
+          <button id="clearLog" class="btn ghost">Clear Log</button>
+        </div>
+      </div>
+      <pre id="log" style="height:160px;overflow:auto;background:#031120;padding:10px;border-radius:8px;color:var(--muted)"></pre>
+    </div>
+    </div>
+
+    <footer class="sub">Recommended: protect this page with Basic Auth in Caddy; auto-fill uses server value.</footer>
+  </div>
+
+<script>
+// Server injected API key (auto-filled)
+window.SERVER_API_KEY="5aa1a3c98a02d193d675b304e64504d9";
+
+const apiBase = window.location.origin || 'https://vps.karims.dev';
+
+// Enhanced logging utility
+const LOG_MAX = 500;
+function formatTS(d){return d.toISOString().replace('T',' ').replace('Z','');}
+function appendLog(level, msg){
+  const p=document.getElementById('log');
+  const now=new Date();
+  const line=document.createElement('div');
+  line.className='log-line '+level.toLowerCase();
+  line.innerHTML = `<span class="ts">${formatTS(now)}</span> <span class="lvl">${level}</span> <span class="msg">${msg}</span>`;
+  p.prepend(line);
+  while(p.children.length>LOG_MAX) p.removeChild(p.lastChild);
+}
+function logInfo(m){appendLog('INFO', m);} 
+function logWarn(m){appendLog('WARN', m);} 
+function logError(m){appendLog('ERROR', m);} 
+(function(){
+  const style=document.createElement('style');
+  style.textContent = `.log-line{font-family:monospace;font-size:13px;padding:6px 8px;border-bottom:1px solid rgba(255,255,255,0.02)} .log-line .ts{color:#9aa6b2;margin-right:8px} .log-line .lvl{font-weight:700;margin-right:8px;color:#7dd3fc} .log-line.warn .lvl{color:#facc15} .log-line.error .lvl{color:#fb7185}`;
+  document.head.appendChild(style);
+})();
+
+async function req(path, method='GET', body=null){
+  const key = document.getElementById('apiKey').value.trim();
+  const headers = {'Content-Type':'application/json'};
+  if(key) headers['X-API-Key'] = key;
+  const opts = {method, headers};
+  if(body) opts.body = JSON.stringify(body);
+  const url = apiBase + path;
+  try{
+    logInfo('Fetching '+url);
+    const r = await fetch(url, opts);
+    const text = await r.text();
+    if(!r.ok){ logWarn('Non-OK '+r.status+' from '+url); throw new Error(text||r.status); }
+    logInfo('Success from '+url);
+    try{ return JSON.parse(text); }catch(e){ return text; }
+  }catch(e){ logError('Fetch error '+url+': '+e); throw e; }
+}
+
+function initEditorFromInline(){
+  try{ if(typeof window.INIT_PHRASES === 'string' && window.INIT_PHRASES.length) document.getElementById('phrases').value = window.INIT_PHRASES; }catch(e){}
+  try{ if(typeof window.INIT_DNC === 'string' && window.INIT_DNC.length) document.getElementById('dnc').value = window.INIT_DNC; }catch(e){}
+}
+
+async function loadAll(){
+  logInfo('Loading...');
+  initEditorFromInline();
+  try{
+    const p = await req('/admin/phrases');
+    if(p && p.content && p.content.trim().length>0){ document.getElementById('phrases').value = p.content; logInfo('Loaded phrases from API'); } else logWarn('Phrases API returned empty — keeping existing');
+  }catch(e){ logError('phrases load error: '+e); }
+  try{
+    const d = await req('/admin/dnc');
+    if(d && d.content && d.content.trim().length>0){ document.getElementById('dnc').value = d.content; logInfo('Loaded DNC from API'); } else logWarn('DNC API returned empty — keeping existing');
+  }catch(e){ logError('dnc load error: '+e); }
+}
+
+async function savePhrases(){
+  const content = document.getElementById('phrases').value;
+  logInfo('Saving phrases...');
+  try{ await req('/admin/phrases','POST',{content}); logInfo('Saved phrases'); }catch(e){ logError('save error: '+e); }
+}
+async function saveDnc(){
+  const content = document.getElementById('dnc').value;
+  logInfo('Saving DNC...');
+  try{ await req('/admin/dnc','POST',{content}); logInfo('Saved DNC'); }catch(e){ logError('save error: '+e); }
+}
+
+try{ addQuickAdd('phrases','newPhrase','addPhraseBtn','New phrase...'); addQuickAdd('dnc','newDnc','addDncBtn','New DNC phrase...'); }catch(e){}
+
+setTimeout(loadAll, 500);
+
+// Log UI utilities
+function clearLog(){
+  const p=document.getElementById('log'); p.textContent='';
+  logInfo('Cleared log');
+}
+function downloadLog(){
+  const p=document.getElementById('log');
+  const lines = Array.from(p.children).map(el => el.textContent).reverse().join('
+');
+  const blob = new Blob([lines], {type: 'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'ss-whisper-log.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  logInfo('Exported log');
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  const dl = document.getElementById('downloadLog'); if(dl) dl.addEventListener('click', downloadLog);
+  const cl = document.getElementById('clearLog'); if(cl) cl.addEventListener('click', clearLog);
+});
+
+</script>
+</body>
+</html>

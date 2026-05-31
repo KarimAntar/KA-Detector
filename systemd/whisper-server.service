@@ -1,0 +1,21 @@
+[Unit]
+Description=whisper.cpp HTTP inference server (model kept in RAM)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/ubuntu/.openclaw/workspace/whisper.cpp/build/bin/whisper-server \
+    -m /home/ubuntu/.openclaw/workspace/whisper.cpp/models/ggml-tiny.bin \
+    -t 2 \
+    -bs 1 \
+    -bo 1 \
+    -ac 256 \
+    -l en \
+    --host 127.0.0.1 \
+    --port 9305
+Restart=on-failure
+RestartSec=5
+User=ubuntu
+
+[Install]
+WantedBy=multi-user.target

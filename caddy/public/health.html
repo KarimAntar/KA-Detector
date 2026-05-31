@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>API Status — KA Voicemail</title>
+<link rel="icon" href="/favicon.ico" sizes="any"/>
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:    #060a14;
+  --bg2:   #0b1221;
+  --blue:  #0066ff;
+  --blue2: #0088ff;
+  --text:  #ffffff;
+  --muted: #9ca3af;
+  --border: rgba(255,255,255,0.09);
+  --card-bg: rgba(255,255,255,0.024);
+  --card-border: rgba(255,255,255,0.07);
+  --green: #34d399;
+  --cyan:  #4cd7f6;
+  --red:   #f87171;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', system-ui, sans-serif; overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ── HEADER ── */
+header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 0 5%; height: 68px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(6,10,20,0.88);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.055);
+}
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.logo-img { height: 48px; width: auto; flex-shrink: 0; }
+.logo-name { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.85rem; color: #dfe2f3; letter-spacing: 0.04em; white-space: nowrap; }
+nav { display: flex; align-items: center; gap: 2rem; }
+nav a { font-size: 0.9rem; font-weight: 500; color: var(--muted); text-decoration: none; transition: color 0.18s; }
+nav a:hover { color: #fff; }
+nav a.active { color: #fff; border-bottom: 1px solid rgba(100,160,255,0.6); padding-bottom: 2px; }
+.btn-nav {
+  padding: 0.5rem 1.2rem; border-radius: 8px; font-size: 0.875rem; font-weight: 600;
+  color: #fff; background: linear-gradient(to right, #0055ff, #0088ff);
+  border: none; cursor: pointer; font-family: 'Space Grotesk', sans-serif;
+  text-decoration: none; transition: all 0.2s; box-shadow: 0 0 20px rgba(0,100,255,0.35);
+}
+.btn-nav:hover { box-shadow: 0 0 32px rgba(0,130,255,0.55); }
+
+/* ── MAIN ── */
+main {
+  flex: 1; padding: 110px 5% 5rem;
+  max-width: 900px; margin: 0 auto; width: 100%;
+  display: flex; flex-direction: column; align-items: center; gap: 3.5rem;
+}
+
+/* ── STATUS CIRCLE ── */
+.status-wrap { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.5rem; width: 100%; }
+.status-ring-wrap { position: relative; width: 128px; height: 128px; display: flex; align-items: center; justify-content: center; }
+.status-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  animation: ring 2s ease-out infinite;
+}
+.status-ring-2 {
+  position: absolute; inset: 0; border-radius: 50%;
+  animation: ring 2s ease-out 0.65s infinite;
+}
+@keyframes ring { 0% { transform:scale(1); opacity:0.6; } 100% { transform:scale(2.4); opacity:0; } }
+@keyframes ping-slow { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.55;transform:scale(1.06)} }
+.status-circle {
+  width: 96px; height: 96px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  animation: ping-slow 2.2s ease-in-out infinite;
+}
+.status-title { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.03em; }
+.status-sub { font-size: 1rem; color: var(--muted); }
+
+/* ── STATS GRID ── */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; width: 100%; }
+.stat-card {
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 14px; padding: 1.2rem 1rem;
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+  position: relative; overflow: hidden;
+}
+.stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,150,255,0.18),transparent); }
+.stat-icon { width: 28px; height: 28px; margin-bottom: 0.1rem; display: flex; align-items: center; justify-content: center; }
+.stat-icon svg { width: 22px; height: 22px; }
+.stat-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.stat-value { font-size: 0.85rem; font-weight: 600; color: #fff; font-family: 'JetBrains Mono', monospace; }
+
+/* ── PANEL ── */
+.panel {
+  width: 100%; background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 16px; padding: 1.6rem; display: flex; flex-direction: column; gap: 1rem;
+  position: relative; overflow: hidden;
+}
+.panel::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,150,255,0.18),transparent); }
+.panel-header { display: flex; align-items: center; justify-content: space-between; }
+.panel-title { font-size: 1.05rem; font-weight: 700; color: #fff; }
+.refresh-btn {
+  display: flex; align-items: center; gap: 0.4rem;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--card-border);
+  border-radius: 8px; padding: 0.4rem 0.8rem;
+  font-size: 0.78rem; font-weight: 500; color: var(--muted);
+  cursor: pointer; font-family: 'Space Grotesk', sans-serif; transition: all 0.18s;
+}
+.refresh-btn:hover { color: #fff; border-color: rgba(100,160,255,0.3); }
+.meta-row { display: flex; gap: 1.5rem; font-size: 0.78rem; color: var(--muted); flex-wrap: wrap; }
+.meta-row span { color: #fff; }
+.code-block {
+  background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px; padding: 1rem 1.2rem;
+  font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+  line-height: 1.65; overflow-x: auto; color: #dfe2f3; white-space: pre;
+}
+.code-label {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem;
+}
+
+/* ── ENDPOINTS ── */
+.endpoint-row {
+  display: flex; align-items: center; gap: 0.9rem;
+  padding: 0.9rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.endpoint-row:last-child { border-bottom: none; }
+.method-badge {
+  display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 5px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.05em; flex-shrink: 0;
+}
+.method-post { background: rgba(77,142,255,0.12); color: #adc6ff; border: 1px solid rgba(77,142,255,0.3); }
+.method-get  { background: rgba(52,211,153,0.12); color: #34d399; border: 1px solid rgba(52,211,153,0.3); }
+.endpoint-path { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #fff; }
+.endpoint-desc { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
+.docs-link {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-size: 0.85rem; color: #adc6ff; text-decoration: none;
+  transition: opacity 0.18s;
+}
+.docs-link:hover { opacity: 0.7; }
+
+/* ── REVEAL ── */
+.reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.active { opacity: 1; transform: translateY(0); }
+
+/* ── FOOTER ── */
+footer { background: #030610; border-top: 1px solid rgba(255,255,255,0.045); padding: 1.75rem 5%; }
+.foot-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+.foot-copy { font-size: 0.72rem; color: #283040; }
+.foot-links { display: flex; gap: 1.4rem; list-style: none; }
+.foot-links a { font-size: 0.78rem; color: #3a4a60; text-decoration: none; transition: color 0.18s; }
+.foot-links a:hover { color: #fff; }
+
+@keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+@media(max-width: 640px) {
+  nav { display: none; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo">
+    <img src="/logo.png" alt="KA Voicemail" class="logo-img"/>
+    <span class="logo-name">KA Voicemail</span>
+  </a>
+  <nav>
+    <a href="/">Home</a>
+    <a href="docs.html">Docs</a>
+    <a href="health.html" class="active">API Status</a>
+  </nav>
+  <a href="/#pricing" class="btn-nav">Get Started</a>
+</header>
+
+<main>
+
+  <!-- Status hero -->
+  <section class="status-wrap reveal">
+    <div class="status-ring-wrap" id="status-icon">
+      <div class="status-ring" id="ring1" style="background:rgba(52,211,153,0.18);"></div>
+      <div class="status-ring-2" id="ring2" style="background:rgba(52,211,153,0.08);"></div>
+      <div class="status-circle" id="status-circle" style="background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);box-shadow:0 0 60px rgba(52,211,153,0.3),0 0 120px rgba(52,211,153,0.12);">
+        <svg id="status-icon-symbol" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </div>
+    <div>
+      <div class="status-title" id="status-title" style="color:var(--green);">API Online</div>
+      <p class="status-sub" id="status-subtitle">All systems operational</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">
+          <!-- Globe / DNS -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#4cd7f6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+          </svg>
+        </div>
+        <div class="stat-label">Endpoint</div>
+        <div class="stat-value" style="font-size:0.72rem;">ss.karims.dev</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <!-- Plug / Port -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#adc6ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22v-5"/><path d="M9 7V2"/><path d="M15 7V2"/><rect x="7" y="7" width="10" height="5" rx="1"/><path d="M5 12v2a7 7 0 0014 0v-2"/>
+          </svg>
+        </div>
+        <div class="stat-label">Port</div>
+        <div class="stat-value">8808</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <!-- Tag / Version -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.5" fill="#34d399" stroke="none"/>
+          </svg>
+        </div>
+        <div class="stat-label">Version</div>
+        <div class="stat-value">0.4.0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">
+          <!-- CPU / Model -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/>
+          </svg>
+        </div>
+        <div class="stat-label">Model</div>
+        <div class="stat-value" style="font-size:0.72rem;">ggml-tiny</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Live health check -->
+  <section class="reveal" style="width:100%;">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Live Health Check</div>
+        <button class="refresh-btn" onclick="runHealthCheck()">
+          <svg id="refresh-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+          Refresh
+        </button>
+      </div>
+      <div class="meta-row">
+        <div>Last checked: <span id="last-checked">—</span></div>
+        <div>Response time: <span id="response-time" style="color:var(--green);font-weight:700;">—</span></div>
+      </div>
+      <div>
+        <div class="code-label">Response</div>
+        <div class="code-block" id="health-response">Fetching...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Endpoints -->
+  <section class="reveal" style="width:100%;display:flex;flex-direction:column;gap:1rem;">
+    <div style="font-size:1.05rem;font-weight:700;color:#fff;">Endpoints</div>
+    <div class="panel" style="padding:0;overflow:hidden;">
+      <div class="endpoint-row">
+        <span class="method-badge method-get">GET</span>
+        <span class="endpoint-path">/health</span>
+        <span class="endpoint-desc">Service health status</span>
+      </div>
+      <div class="endpoint-row">
+        <span class="method-badge method-post">POST</span>
+        <span class="endpoint-path">/voicemail</span>
+        <span class="endpoint-desc">Audio file detection</span>
+      </div>
+      <div class="endpoint-row">
+        <span class="method-badge method-post">POST</span>
+        <span class="endpoint-path">/voicemail-json</span>
+        <span class="endpoint-desc">Base64 JSON detection + DNC</span>
+      </div>
+      <div class="endpoint-row">
+        <span class="method-badge method-post">POST</span>
+        <span class="endpoint-path">/transcribe</span>
+        <span class="endpoint-desc">Raw audio transcription</span>
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <a href="docs.html" class="docs-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+        View full API documentation →
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <a href="/" class="logo" style="opacity:0.55;">
+      <img src="/logo.png" alt="KA Voicemail" class="logo-img" style="height:40px;"/>
+      <span class="logo-name">KA Voicemail</span>
+    </a>
+    <p class="foot-copy">© 2026 KA Voicemail API. All rights reserved.</p>
+    <ul class="foot-links">
+      <li><a href="health.html">API Status</a></li>
+      <li><a href="docs.html">Docs</a></li>
+      <li><a href="/#pricing">Pricing</a></li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('active'); observer.unobserve(e.target); } });
+  }, { threshold: 0.05 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  function setOnline() {
+    const circle = document.getElementById('status-circle');
+    const title  = document.getElementById('status-title');
+    const sub    = document.getElementById('status-subtitle');
+    const icon   = document.getElementById('status-icon-symbol');
+    const ring1  = document.getElementById('ring1');
+    const ring2  = document.getElementById('ring2');
+    circle.style.cssText = 'width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;animation:ping-slow 2.2s ease-in-out infinite;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);box-shadow:0 0 60px rgba(52,211,153,0.3),0 0 120px rgba(52,211,153,0.12);';
+    ring1.style.background = 'rgba(52,211,153,0.18)';
+    ring2.style.background = 'rgba(52,211,153,0.08)';
+    icon.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+    icon.setAttribute('stroke','#34d399');
+    title.style.color = 'var(--green)';
+    title.textContent = 'API Online';
+    sub.textContent   = 'All systems operational';
+  }
+
+  function setOffline() {
+    const circle = document.getElementById('status-circle');
+    const title  = document.getElementById('status-title');
+    const sub    = document.getElementById('status-subtitle');
+    const icon   = document.getElementById('status-icon-symbol');
+    const ring1  = document.getElementById('ring1');
+    const ring2  = document.getElementById('ring2');
+    circle.style.cssText = 'width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;animation:ping-slow 2.2s ease-in-out infinite;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);box-shadow:0 0 60px rgba(248,113,113,0.3),0 0 120px rgba(248,113,113,0.12);';
+    ring1.style.background = 'rgba(248,113,113,0.18)';
+    ring2.style.background = 'rgba(248,113,113,0.08)';
+    icon.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+    icon.setAttribute('stroke','#f87171');
+    title.style.color = 'var(--red)';
+    title.textContent = 'API Unreachable';
+    sub.textContent   = 'Service may be down or restarting';
+  }
+
+  async function runHealthCheck() {
+    const responseEl  = document.getElementById('health-response');
+    const checkedEl   = document.getElementById('last-checked');
+    const timeEl      = document.getElementById('response-time');
+    const refreshIcon = document.getElementById('refresh-icon');
+
+    refreshIcon.style.animation = 'spin 1s linear infinite';
+    responseEl.textContent = 'Fetching...';
+    timeEl.textContent = '—';
+
+    const start = Date.now();
+    try {
+      const res  = await fetch('https://ss.karims.dev/health', { cache: 'no-store' });
+      const ms   = Date.now() - start;
+      const data = await res.json();
+
+      timeEl.textContent = ms + 'ms';
+      checkedEl.textContent = new Date().toLocaleTimeString();
+      responseEl.textContent = JSON.stringify(data, null, 2);
+
+      if (res.ok && data.status === 'ok') {
+        setOnline();
+        timeEl.style.color = 'var(--green)';
+      } else {
+        setOffline();
+        timeEl.style.color = 'var(--red)';
+      }
+    } catch (err) {
+      const ms = Date.now() - start;
+      timeEl.textContent = ms + 'ms';
+      timeEl.style.color = 'var(--red)';
+      checkedEl.textContent = new Date().toLocaleTimeString();
+      responseEl.textContent = 'Error: ' + err.message;
+      setOffline();
+    }
+    refreshIcon.style.animation = '';
+  }
+
+  runHealthCheck();
+  setInterval(runHealthCheck, 30000);
+</script>
+</body>
+</html>

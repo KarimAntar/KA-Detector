@@ -1,0 +1,29 @@
+[Unit]
+Description=Voicemail Detection API (whisper.cpp)
+After=network.target whisper-server.service
+Wants=whisper-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/ubuntu/.openclaw/workspace/voicemail_api
+ExecStart=/home/ubuntu/.openclaw/workspace/voicemail_api/run.sh
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=3
+User=ubuntu
+Environment=WHISPER_CPP_PATH=/home/ubuntu/.openclaw/workspace/whisper.cpp
+Environment=WHISPER_MODEL_PATH=/home/ubuntu/.openclaw/workspace/whisper.cpp/models/ggml-tiny.bin
+Environment=WHISPER_SERVER_URL=http://127.0.0.1:9305
+Environment=UVICORN_WORKERS=2
+Environment=API_KEY=5aa1a3c98a02d193d675b304e64504d9
+Environment=BASIC_AUTH_USER=karim
+Environment=BASIC_AUTH_PASS=ZawZaw24@!#
+Environment=CORS_ORIGINS=*
+Environment=RESEND_API_KEY=re_cThV88K3_dTmV4XEhHyLsNFpJ8nJgNYuk
+Environment=CONTACT_EMAIL=karimamdou7@gmail.com
+Environment=SMTP_FROM="KA Voicemail <noreply@karims.dev>"
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+# Python runtime
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# API runtime data (recordings, logs, local backups) — never commit
+voicemail_api/work/
+voicemail_api/backups/
+voicemail_api/*.log
+*.log
+
+# Large blobs that must never enter the repo (GitHub 100MB limit)
+*.tar.gz
+*.bin
+*.zip
+
+# Editor / OS noise
+.DS_Store
+.claude/

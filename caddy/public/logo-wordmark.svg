@@ -1,0 +1,27 @@
+<svg width="240" height="64" viewBox="8 8 240 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="wave-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#adc6ff" />
+      <stop offset="100%" stop-color="#4cd7f6" />
+    </linearGradient>
+    <filter id="blue-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  
+  <!-- Background Container (Icon Area) -->
+  <rect x="12" y="12" width="56" height="56" rx="8" fill="#0a0e1a" />
+  
+  <!-- Waveform Icon -->
+  <g filter="url(#blue-glow)">
+    <rect x="23" y="38" width="4" height="12" rx="2" fill="url(#wave-grad)" />
+    <rect x="30" y="28" width="4" height="24" rx="2" fill="url(#wave-grad)" />
+    <rect x="37" y="32" width="4" height="18" rx="2" fill="url(#wave-grad)" />
+    <rect x="44" y="25" width="4" height="28" rx="2" fill="url(#wave-grad)" />
+    <rect x="51" y="35" width="4" height="14" rx="2" fill="url(#wave-grad)" />
+  </g>
+  
+  <!-- Text Content -->
+  <text x="84" y="47" fill="#dfe2f3" font-family="Geist, sans-serif" font-size="20" font-weight="bold" letter-spacing="-0.02em">KA Voicemail</text>
+</svg>

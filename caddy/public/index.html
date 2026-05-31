@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KA Voicemail — AI-Powered Voicemail Detector</title>
+<link rel="icon" href="/favicon.ico" sizes="any"/>
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32"/>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Orbitron:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:    #060a14;
+  --bg2:   #0b1221;
+  --blue:  #0066ff;
+  --blue2: #0088ff;
+  --text:  #ffffff;
+  --muted: #9ca3af;
+  --border: rgba(255,255,255,0.09);
+}
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', system-ui, sans-serif; overflow-x: hidden; min-height: 100vh; }
+
+/* ── HEADER ── */
+header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 1.25rem 5%;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(6,10,20,0.82);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.055);
+}
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; flex-shrink: 0; }
+.logo-img { height: 52px; width: auto; flex-shrink: 0; }
+.logo-name { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.9rem; color: #dfe2f3; letter-spacing: 0.04em; white-space: nowrap; }
+nav { display: flex; align-items: center; gap: 2rem; }
+nav a { font-size: 0.9rem; font-weight: 500; color: var(--muted); text-decoration: none; transition: color 0.18s; }
+nav a:hover { color: #fff; }
+.btn-nav {
+  padding: 0.5rem 1.2rem; border-radius: 8px; font-size: 0.875rem; font-weight: 500;
+  color: #fff; background: transparent; border: 1px solid rgba(160,170,200,0.4);
+  cursor: pointer; font-family: 'Space Grotesk',sans-serif; text-decoration: none; transition: all 0.2s;
+}
+.btn-nav:hover { border-color:#fff; background: rgba(255,255,255,0.06); }
+
+/* ── HERO ── */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  width: 100%;
+}
+.hero-content {
+  max-width: 1400px; margin: 0 auto;
+  padding: 8rem 5% 4rem;
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 2rem; align-items: center;
+  position: relative; z-index: 1;
+  min-height: 100vh;
+}
+#wave-bg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none; z-index: 0;
+}
+.hero-left { display: flex; flex-direction: column; position: relative; z-index: 1; }
+h1 {
+  font-size: clamp(2.8rem, 5.5vw, 5rem);
+  font-weight: 800; line-height: 1.08; letter-spacing: -0.03em;
+  color: #fff; margin-bottom: 1.5rem;
+}
+.hero-sub { font-size: 1.1rem; color: var(--muted); line-height: 1.72; margin-bottom: 2.5rem; max-width: 78%; }
+.btn-primary {
+  display: inline-flex; align-items: center; align-self: flex-start;
+  padding: 0.9rem 2rem; border-radius: 10px; font-size: 1rem; font-weight: 700;
+  color: #fff; background: linear-gradient(to right, #0055ff, #0088ff);
+  border: none; cursor: pointer; font-family: 'Space Grotesk',sans-serif; text-decoration: none;
+  box-shadow: 0 0 32px rgba(0,100,255,0.5), 0 4px 20px rgba(0,0,0,0.3);
+  transition: all 0.22s;
+}
+.btn-primary:hover { box-shadow: 0 0 54px rgba(0,130,255,0.7), 0 4px 20px rgba(0,0,0,0.3); transform: translateY(-1px); }
+.btn-ghost {
+  display: inline-flex; align-items: center; align-self: flex-start;
+  padding: 0.9rem 2rem; border-radius: 10px; font-size: 1rem; font-weight: 600;
+  color: #dfe2f3; background: transparent; border: 1px solid rgba(160,180,220,0.28);
+  cursor: pointer; font-family: 'Space Grotesk',sans-serif; text-decoration: none;
+  transition: all 0.22s;
+}
+.btn-ghost:hover { border-color: rgba(160,180,220,0.6); background: rgba(255,255,255,0.05); transform: translateY(-1px); }
+.hero-cta { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+
+/* ── PRICING ── */
+.pricing-toggle { display:flex; align-items:center; justify-content:center; gap:0.75rem; margin-bottom:2.75rem; }
+.toggle-label { font-size:0.875rem; font-weight:500; color:var(--muted); cursor:pointer; transition:color 0.18s; }
+.toggle-label.active { color:#fff; }
+.toggle-track {
+  position:relative; width:44px; height:24px; border-radius:999px;
+  background:rgba(0,100,255,0.3); border:1px solid rgba(0,120,255,0.4);
+  cursor:pointer; transition:background 0.22s;
+}
+.toggle-track.yearly { background:rgba(0,100,255,0.7); }
+.toggle-thumb {
+  position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%;
+  background:#fff; transition:transform 0.22s;
+}
+.toggle-track.yearly .toggle-thumb { transform:translateX(20px); }
+.badge-save {
+  font-size:0.65rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase;
+  background:linear-gradient(135deg,#34d399,#0ea5e9); -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent; background-clip:text;
+}
+.plans { display:grid; grid-template-columns:repeat(3,1fr); gap:1.25rem; margin-top:0; }
+.plan {
+  background:rgba(255,255,255,0.024); border:1px solid rgba(255,255,255,0.07);
+  border-radius:18px; padding:2rem 1.75rem; position:relative; overflow:hidden;
+  display:flex; flex-direction:column; transition:all 0.28s;
+}
+.plan::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,150,255,0.2),transparent); }
+.plan:hover { transform:translateY(-4px); box-shadow:0 20px 60px rgba(0,40,180,0.14); border-color:rgba(0,140,255,0.18); }
+.plan.featured {
+  background:rgba(0,80,255,0.08); border-color:rgba(0,130,255,0.35);
+  box-shadow:0 0 0 1px rgba(0,130,255,0.18), 0 20px 60px rgba(0,60,200,0.18);
+}
+.plan.featured::before { background:linear-gradient(90deg,transparent,rgba(0,180,255,0.55),transparent); }
+.plan-badge {
+  display:inline-flex; align-self:flex-start; padding:0.25rem 0.7rem; border-radius:999px;
+  font-size:0.62rem; font-weight:700; letter-spacing:0.09em; text-transform:uppercase;
+  background:linear-gradient(135deg,#0055ff,#0099ff); color:#fff; margin-bottom:1.1rem;
+}
+.plan-name { font-size:1.05rem; font-weight:700; color:#fff; margin-bottom:0.4rem; }
+.plan-desc { font-size:0.8rem; color:var(--muted); line-height:1.55; margin-bottom:1.5rem; }
+.plan-price { display:flex; align-items:baseline; gap:0.3rem; margin-bottom:1.6rem; }
+.plan-price .amount { font-size:2.6rem; font-weight:800; letter-spacing:-0.03em; color:#fff; }
+.plan-price .period { font-size:0.82rem; color:var(--muted); }
+.plan-price .original { font-size:0.85rem; color:var(--muted); text-decoration:line-through; margin-left:0.3rem; }
+.plan-features { list-style:none; display:flex; flex-direction:column; gap:0.62rem; margin-bottom:1.8rem; flex:1; }
+.plan-features li { display:flex; align-items:flex-start; gap:0.55rem; font-size:0.845rem; color:#c2c6d6; line-height:1.45; }
+.plan-features li svg { flex-shrink:0; margin-top:1px; }
+.btn-plan {
+  display:flex; align-items:center; justify-content:center;
+  padding:0.75rem 1.5rem; border-radius:9px; font-size:0.9rem; font-weight:700;
+  cursor:pointer; font-family:'Space Grotesk',sans-serif; text-decoration:none;
+  transition:all 0.22s; border:1px solid rgba(160,180,220,0.25); color:#dfe2f3; background:transparent;
+}
+.btn-plan:hover { border-color:rgba(160,180,220,0.5); background:rgba(255,255,255,0.05); }
+.btn-plan.featured-btn {
+  background:linear-gradient(to right,#0055ff,#0088ff); border:none; color:#fff;
+  box-shadow:0 0 28px rgba(0,100,255,0.45);
+}
+.btn-plan.featured-btn:hover { box-shadow:0 0 48px rgba(0,130,255,0.65); transform:translateY(-1px); }
+@media(max-width:900px){ .plans { grid-template-columns:1fr; } }
+
+/* ── HERO VISUAL (right column) ── */
+.hero-right {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  height: 520px;
+}
+
+.hero-img {
+  width: 100%;
+  max-width: 540px;
+  height: auto;
+  animation: floatImg 5s ease-in-out infinite;
+  filter: drop-shadow(0 0 48px rgba(0,100,255,0.52)) drop-shadow(0 28px 72px rgba(0,0,0,0.55));
+}
+@keyframes floatImg {
+  0%,100% { transform: translateY(0px); }
+  50%      { transform: translateY(-18px); }
+}
+
+/* ── FEATURES BAR ── */
+.features-bar { background:var(--bg2); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:1.75rem 5%; }
+.features-inner { max-width:1400px; margin:0 auto; display:flex; justify-content:space-evenly; align-items:center; gap:1.2rem; flex-wrap:wrap; }
+.feat-item { display:flex; align-items:center; gap:0.7rem; }
+.feat-icon { width:38px; height:38px; border-radius:9px; background:rgba(0,136,255,0.1); border:1px solid rgba(0,136,255,0.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.feat-text .title { font-size:0.9rem; font-weight:700; color:#fff; line-height:1.2; }
+.feat-text .sub   { font-size:0.75rem; color:var(--muted); line-height:1.3; }
+
+/* ── BELOW HERO ── */
+.section { max-width:1400px; margin:0 auto; padding:4.5rem 5%; }
+.section-label { font-size:0.68rem; font-weight:700; letter-spacing:0.13em; text-transform:uppercase; color:var(--blue2); margin-bottom:0.9rem; }
+.section-title { font-size:clamp(1.7rem,3.5vw,2.5rem); font-weight:800; letter-spacing:-0.025em; color:#fff; margin-bottom:0.8rem; }
+.section-sub { font-size:0.95rem; color:var(--muted); line-height:1.72; max-width:460px; }
+.grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-top:2.25rem; }
+.card { background:rgba(255,255,255,0.024); border:1px solid rgba(255,255,255,0.07); border-radius:16px; padding:1.6rem; position:relative; overflow:hidden; transition:all 0.28s; }
+.card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,rgba(0,150,255,0.28),transparent); }
+.card:hover { background:rgba(255,255,255,0.04); border-color:rgba(0,150,255,0.2); transform:translateY(-3px); box-shadow:0 18px 48px rgba(0,40,180,0.12); }
+.stat-num { font-size:2.6rem; font-weight:800; letter-spacing:-0.03em; background:linear-gradient(135deg,#60a5fa,#38bdf8); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; line-height:1; margin-bottom:0.45rem; }
+.stat-lbl { font-size:0.7rem; font-weight:600; color:var(--muted); letter-spacing:0.09em; text-transform:uppercase; }
+.card-icon { width:38px; height:38px; border-radius:9px; display:flex; align-items:center; justify-content:center; margin-bottom:1rem; }
+.card-title { font-size:1rem; font-weight:700; color:#fff; margin-bottom:0.55rem; }
+.card-body  { font-size:0.845rem; color:var(--muted); line-height:1.72; }
+.hr { height:1px; background:linear-gradient(90deg,transparent,rgba(0,120,255,0.13),transparent); max-width:1400px; margin:0 auto; }
+.term-wrap { background:#030610; border:1px solid rgba(0,120,255,0.13); border-radius:14px; overflow:hidden; margin-top:2.25rem; }
+.term-bar { background:#050b1a; padding:0.7rem 1rem; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(0,120,255,0.09); }
+.dot { width:10px; height:10px; border-radius:50%; }
+.term-body { padding:1.5rem 1.75rem; font-family:'JetBrains Mono',monospace; font-size:0.78rem; line-height:1.9; color:#6b7db8; overflow-x:auto; }
+.status-bar { background:rgba(3,6,16,0.7); border-top:1px solid rgba(255,255,255,0.045); padding:0.7rem 5%; display:flex; align-items:center; justify-content:center; gap:1rem; font-size:0.7rem; color:#384560; }
+.live-dot { width:6px; height:6px; border-radius:50%; background:#34d399; box-shadow:0 0 8px rgba(52,211,153,0.8); animation:livePulse 2s ease-in-out infinite; }
+@keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+footer { background:#030610; border-top:1px solid rgba(255,255,255,0.045); padding:1.75rem 5%; }
+.foot-inner { max-width:1400px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem; }
+.foot-copy { font-size:0.72rem; color:#283040; }
+.foot-links { display:flex; gap:1.4rem; list-style:none; }
+.foot-links a { font-size:0.78rem; color:#3a4a60; text-decoration:none; transition:color 0.18s; }
+.foot-links a:hover { color:#fff; }
+
+/* Modal */
+.modal-bg { display:none; position:fixed; inset:0; z-index:300; align-items:center; justify-content:center; padding:1.25rem; }
+.modal-bg.open { display:flex; }
+.modal-veil { position:absolute; inset:0; background:rgba(0,0,0,0.8); backdrop-filter:blur(12px); }
+.modal-box { position:relative; z-index:10; width:100%; max-width:440px; background:#080f22; border:1px solid rgba(0,140,255,0.2); border-radius:18px; overflow:hidden; box-shadow:0 0 80px rgba(0,80,255,0.18),0 40px 100px rgba(0,0,0,0.7); }
+.modal-stripe { height:2.5px; background:linear-gradient(90deg,#0055ff,#00aaff); }
+.modal-content { padding:1.5rem 1.5rem 1.7rem; }
+.m-label { display:block; font-size:0.65rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:rgba(120,140,200,0.5); margin-bottom:0.35rem; }
+.m-input { width:100%; background:rgba(255,255,255,0.04); border:1px solid rgba(0,120,255,0.18); border-radius:7px; padding:0.58rem 0.8rem; font-size:0.85rem; color:#fff; font-family:'Space Grotesk',sans-serif; outline:none; transition:border-color 0.2s; }
+.m-input:focus { border-color:rgba(0,160,255,0.48); }
+.m-input::placeholder { color:rgba(120,140,200,0.27); }
+.reveal { opacity:0; transform:translateY(16px); transition:opacity 0.6s ease,transform 0.6s ease; }
+.reveal.active { opacity:1; transform:translateY(0); }
+
+@media(max-width:900px){
+  .hero-content { grid-template-columns:1fr; padding:7rem 5% 3rem; text-align:center; min-height:auto; }
+  .hero-left { align-items:center; }
+  .hero-sub { max-width:100%; }
+  .btn-primary { align-self:center; }
+  .hero-right { height:380px; order:-1; }
+  .hero-img { max-width: 340px; }
+  .grid-3 { grid-template-columns:1fr; }
+}
+@media(max-width:640px){
+  nav { display:none; }
+  .features-inner { gap:1rem; }
+  .feat-item { width:45%; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <a href="/" class="logo">
+    <img src="/logo.png" alt="KA Voicemail" class="logo-img"/>
+    <span class="logo-name">KA Voicemail</span>
+  </a>
+  <nav>
+    <a href="#home">Home</a>
+    <a href="#features">Features</a>
+    <a href="#stats">Stats</a>
+    <a href="#api">API</a>
+    <a href="#pricing">Pricing</a>
+    <a href="docs.html">Docs</a>
+    <a href="health.html">API Status</a>
+  </nav>
+  <button onclick="openDemoModal()" class="btn-nav" style="background:linear-gradient(to right,#0055ff,#0088ff);border-color:transparent;box-shadow:0 0 22px rgba(0,100,255,0.45);">Request Demo</button>
+</header>
+
+<!-- ── HERO ── -->
+<section class="hero" id="home">
+  <canvas id="wave-bg"></canvas>
+  <div class="hero-content">
+  <!-- Left -->
+  <div class="hero-left reveal">
+    <h1>AI-Powered<br/>Voicemail Detector</h1>
+    <p class="hero-sub">Intelligent, fast, and reliable AI-powered voicemail detection built for the future.</p>
+    <div class="hero-cta">
+      <a href="#pricing" class="btn-primary">Get Started</a>
+      <a href="docs.html" class="btn-ghost">Read Docs</a>
+    </div>
+  </div>
+
+    <!-- Right: hero image -->
+  <div class="hero-right">
+    <img src="/hero.png" alt="KA Voicemail" class="hero-img"/>
+  </div>
+  </div><!-- /.hero-content -->
+</section>
+
+
+<!-- ── STATS ── -->
+<div class="hr"></div>
+<section class="section reveal" id="stats">
+  <div class="grid-3">
+    <div class="card" style="text-align:center;"><div class="stat-num">&lt; 2s</div><div class="stat-lbl">Detection Latency</div></div>
+    <div class="card" style="text-align:center;"><div class="stat-num" style="background:linear-gradient(135deg,#34d399,#67e8f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">99%+</div><div class="stat-lbl">Accuracy Rate</div></div>
+    <div class="card" style="text-align:center;"><div class="stat-num" style="background:linear-gradient(135deg,#a78bfa,#c4b5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">100%</div><div class="stat-lbl">Self-Hosted &amp; Private</div></div>
+  </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<div class="hr"></div>
+<section class="section reveal" id="features">
+  <div class="section-label">Capabilities</div>
+  <div class="section-title">Everything you need</div>
+  <div class="section-sub">Built for production call centers — drop in via REST and go live in minutes.</div>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-icon" style="background:rgba(26,111,255,0.1);"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+      <div class="card-title">Real-Time Detection</div>
+      <div class="card-body">Streaming audio analyzed on the fly, providing instantaneous feedback on call status.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:rgba(52,211,153,0.1);"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+      <div class="card-title">Secure Auth</div>
+      <div class="card-body">Enterprise-grade API key and Basic Auth support for safe, reliable integrations.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:rgba(167,139,250,0.1);"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+      <div class="card-title">AI Transcription</div>
+      <div class="card-body">Powered by OpenAI Whisper (whisper.cpp), optimized for low-latency production use.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── TERMINAL ── -->
+<div class="hr"></div>
+<section class="section reveal" id="api" style="padding-bottom:5.5rem;">
+  <div class="section-label">Integration</div>
+  <div class="section-title">Simple REST API</div>
+  <div class="section-sub">One endpoint. POST your audio. Voicemail verdict in under 2 seconds.</div>
+  <div class="term-wrap">
+    <div class="term-bar">
+      <div style="display:flex;gap:6px;"><div class="dot" style="background:rgba(255,80,80,0.4);"></div><div class="dot" style="background:rgba(255,190,0,0.4);"></div><div class="dot" style="background:rgba(52,211,153,0.4);"></div></div>
+      <span style="font-size:0.6rem;font-weight:600;color:rgba(100,130,180,0.4);letter-spacing:0.13em;text-transform:uppercase;">Terminal</span>
+      <div style="width:40px;"></div>
+    </div>
+    <div class="term-body">
+<span style="color:#60a5fa;">curl</span> -X POST <span style="color:#38bdf8;">https://ss.karims.dev/voicemail-json</span> \<br/>
+&nbsp;&nbsp;-H <span style="color:#a78bfa;">"X-API-Key: sk_live_..."</span> \<br/>
+&nbsp;&nbsp;-F <span style="color:#a78bfa;">"audio=@voicemail.wav"</span><br/><br/>
+<span style="color:rgba(80,100,150,0.5);"># Response</span><br/>
+{<br/>
+&nbsp;&nbsp;<span style="color:#38bdf8;">"voicemail"</span>: <span style="color:#60a5fa;">true</span>,<br/>
+&nbsp;&nbsp;<span style="color:#38bdf8;">"matched_phrases"</span>: [<span style="color:#a78bfa;">"leave a message"</span>],<br/>
+&nbsp;&nbsp;<span style="color:#38bdf8;">"dead_air"</span>: <span style="color:#f87171;">false</span><br/>
+}
+    </div>
+  </div>
+</section>
+
+<!-- ── PRICING ── -->
+<div class="hr"></div>
+<section class="section reveal" id="pricing">
+  <div class="section-label">Pricing</div>
+  <div class="section-title">Simple, transparent pricing</div>
+  <div class="section-sub">Start free, scale as you grow. No hidden fees, cancel any time.</div>
+
+  <div class="pricing-toggle" style="margin-top:2rem;">
+    <span class="toggle-label active" id="lbl-monthly">Monthly</span>
+    <div class="toggle-track" id="billing-toggle" onclick="toggleBilling()">
+      <div class="toggle-thumb"></div>
+    </div>
+    <span class="toggle-label" id="lbl-yearly">Yearly <span class="badge-save">Save 20%</span></span>
+  </div>
+
+  <div class="plans">
+    <!-- Starter -->
+    <div class="plan">
+      <div class="plan-name">Starter</div>
+      <div class="plan-desc">Perfect for developers and small teams testing the API.</div>
+      <div class="plan-price">
+        <span class="amount" data-monthly="$0" data-yearly="$0">$0</span>
+        <span class="period">/ mo</span>
+      </div>
+      <ul class="plan-features">
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>1,000 detections / month</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>REST API access</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>JSON + audio response</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Community support</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(100,120,160,0.5)" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span style="color:var(--muted);">Webhooks</span></li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(100,120,160,0.5)" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span style="color:var(--muted);">SLA guarantee</span></li>
+      </ul>
+      <a href="docs.html" class="btn-plan">Start Free</a>
+    </div>
+
+    <!-- Pro (featured) -->
+    <div class="plan featured">
+      <span class="plan-badge">Most Popular</span>
+      <div class="plan-name">Pro</div>
+      <div class="plan-desc">For growing call centers that need reliability and scale.</div>
+      <div class="plan-price">
+        <span class="amount" data-monthly="$49" data-yearly="$39">$49</span>
+        <span class="period">/ mo</span>
+        <span class="original" id="pro-original" style="display:none;">$49</span>
+      </div>
+      <ul class="plan-features">
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>25,000 detections / month</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Priority processing queue</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Webhooks &amp; callbacks</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Transcription included</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Email support</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(100,120,160,0.5)" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg><span style="color:var(--muted);">On-premise deploy</span></li>
+      </ul>
+      <a href="#" onclick="openDemoModal();return false;" class="btn-plan featured-btn">Get Started</a>
+    </div>
+
+    <!-- Enterprise -->
+    <div class="plan">
+      <div class="plan-name">Enterprise</div>
+      <div class="plan-desc">Unlimited scale, on-premise options, and dedicated SLA.</div>
+      <div class="plan-price">
+        <span class="amount" data-monthly="Custom" data-yearly="Custom">Custom</span>
+      </div>
+      <ul class="plan-features">
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Unlimited detections</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>On-premise deployment</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Custom Whisper model tuning</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Dedicated support channel</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>99.9% uptime SLA</li>
+        <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>Custom billing &amp; invoicing</li>
+      </ul>
+      <a href="#" onclick="openDemoModal();return false;" class="btn-plan">Contact Sales</a>
+    </div>
+  </div>
+</section>
+
+<div class="status-bar">
+  <div style="display:flex;align-items:center;gap:7px;"><div class="live-dot"></div><span>API Online</span></div>
+  <span style="color:#151e30;">|</span><span>Port 8808</span>
+  <span style="color:#151e30;">|</span><span style="font-family:'JetBrains Mono',monospace;font-size:0.66rem;">ss.karims.dev</span>
+</div>
+
+<footer>
+  <div class="foot-inner">
+    <a href="/" class="logo" style="opacity:0.55;">
+      <img src="/logo.png" alt="KA Voicemail" class="logo-img" style="height:44px;"/>
+      <span class="logo-name">KA Voicemail</span>
+    </a>
+    <p class="foot-copy">© 2026 KA Voicemail API. All rights reserved.</p>
+    <ul class="foot-links"><li><a href="health.html">API Status</a></li><li><a href="docs.html">Docs</a></li></ul>
+  </div>
+</footer>
+
+<!-- ── MODAL ── -->
+<div id="demo-modal" class="modal-bg">
+  <div class="modal-veil" onclick="closeDemoModal()"></div>
+  <div class="modal-box">
+    <div class="modal-stripe"></div>
+    <div class="modal-content">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.1rem;">
+        <div><div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:4px;">Book a Demo</div><div style="font-size:0.78rem;color:var(--muted);">30-min live walkthrough. We'll reach out within 1 business day.</div></div>
+        <button onclick="closeDemoModal()" style="background:none;border:none;cursor:pointer;color:#30405a;padding:2px;line-height:1;transition:color 0.18s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#30405a'">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="demo-form" onsubmit="submitDemo(event)" style="display:flex;flex-direction:column;gap:0.7rem;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.55rem;">
+          <div><label class="m-label">Name <span style="color:#f87171;">*</span></label><input id="d-name" type="text" required placeholder="Jane Smith" class="m-input"/></div>
+          <div><label class="m-label">Email <span style="color:#f87171;">*</span></label><input id="d-email" type="email" required placeholder="jane@co.com" class="m-input"/></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.55rem;">
+          <div><label class="m-label">Company</label><input id="d-company" type="text" placeholder="Acme Inc." class="m-input"/></div>
+          <div><label class="m-label">Phone</label><input id="d-phone" type="tel" placeholder="+1 555 0100" class="m-input"/></div>
+        </div>
+        <div><label class="m-label">Use Case <span style="color:#f87171;">*</span></label><textarea id="d-message" required rows="3" placeholder="Tell us about your call volume…" class="m-input" style="resize:none;"></textarea></div>
+        <div id="demo-error" style="display:none;font-size:0.78rem;color:#f87171;background:rgba(248,113,113,0.07);border:1px solid rgba(248,113,113,0.18);border-radius:7px;padding:0.5rem 0.8rem;"></div>
+        <button id="demo-submit" type="submit" class="btn-primary" style="width:100%;justify-content:center;padding:0.8rem;">
+          <span id="demo-btn-label">Request Demo</span>
+        </button>
+      </form>
+      <div id="demo-success" style="display:none;text-align:center;padding:1.1rem 0;">
+        <div style="width:50px;height:50px;border-radius:50%;background:rgba(52,211,153,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 0.8rem;">
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <div style="font-size:1rem;font-weight:700;color:#fff;margin-bottom:5px;">Request sent!</div>
+        <div style="font-size:0.8rem;color:var(--muted);line-height:1.65;">We'll reach out within 1 business day.<br/>Check your inbox for a confirmation.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Hero: voice-signal waves ── */
+(function(){
+  const c = document.getElementById('wave-bg');
+  if(!c) return;
+  const ctx = c.getContext('2d');
+  let W, H, t = 0;
+
+  function rnd(a,b){ return a + Math.random()*(b-a); }
+
+  /* 14 waves — each with random parameters and 8 harmonic phases */
+  const waves = Array.from({length:14}, (_,i) => ({
+    yF:  (i + 0.5) / 14,
+    base: rnd(18, 58),
+    f:   rnd(0.0018, 0.0072),
+    spd: rnd(0.18, 0.65) * (Math.random()>.5?1:-1),
+    lw:  rnd(0.5, 1.5),
+    op:  rnd(0.09, 0.20),
+    c:   [Math.round(rnd(55,130)), Math.round(rnd(155,220)), 255],
+    /* 8 phases — one per harmonic */
+    ph:  Array.from({length:8}, ()=> rnd(0, Math.PI*2)),
+    /* energy envelope params */
+    eF:  rnd(0.0002, 0.0008),
+    ePh: rnd(0, Math.PI*2),
+  }));
+
+  function resize(){
+    W = c.width  = c.parentElement.offsetWidth;
+    H = c.height = c.parentElement.offsetHeight || window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  /* voice-signal shape: fundamental + 7 harmonics + spatial energy envelope */
+  function waveY(w, x){
+    const spd = w.spd;
+    /* spatial envelope: abs(sin) creates regions of high/low energy like speech */
+    const envX = Math.abs(Math.sin(x * w.eF + w.ePh + t * 0.08));
+    /* temporal breathing — envelope itself pulses over time */
+    const envT = 0.35 + 0.65 * Math.abs(Math.sin(t * 0.25 + w.ph[0]));
+    const env  = envX * envT;
+
+    const sig =
+      Math.sin(x * w.f       + t * spd       + w.ph[0]) * 1.00 +
+      Math.sin(x * w.f * 2.1 + t * spd * 2.1 + w.ph[1]) * 0.48 +
+      Math.sin(x * w.f * 3.0 + t * spd * 3.0 + w.ph[2]) * 0.27 +
+      Math.sin(x * w.f * 4.2 + t * spd * 4.2 + w.ph[3]) * 0.16 +
+      Math.sin(x * w.f * 5.9 + t * spd * 5.9 + w.ph[4]) * 0.10 +
+      Math.sin(x * w.f * 7.1 + t * spd * 7.1 + w.ph[5]) * 0.07 +
+      Math.sin(x * w.f * 9.3 + t * spd * 9.3 + w.ph[6]) * 0.04 +
+      Math.sin(x * w.f *11.5 + t * spd *11.5 + w.ph[7]) * 0.02;
+
+    return w.yF * H + sig * w.base * env;
+  }
+
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+    waves.forEach(w => {
+      const [r,g,b] = w.c;
+      ctx.beginPath();
+      for(let x = 0; x <= W; x++){
+        const y = waveY(w, x);
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = `rgba(${r},${g},${b},${w.op})`;
+      ctx.lineWidth   = w.lw;
+      ctx.lineJoin    = 'round';
+      ctx.stroke();
+    });
+    t += 0.008;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ── Scroll reveal ── */
+document.addEventListener('DOMContentLoaded', () => {
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('active'); obs.unobserve(e.target); }});
+  }, { threshold: 0.06 });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+});
+
+/* ── Pricing toggle ── */
+function toggleBilling(){
+  const track = document.getElementById('billing-toggle');
+  const yearly = track.classList.toggle('yearly');
+  document.getElementById('lbl-monthly').classList.toggle('active', !yearly);
+  document.getElementById('lbl-yearly').classList.toggle('active', yearly);
+  document.querySelectorAll('.plan-price .amount').forEach(el => {
+    el.textContent = yearly ? el.dataset.yearly : el.dataset.monthly;
+  });
+  const proOrig = document.getElementById('pro-original');
+  if(proOrig){ proOrig.style.display = yearly ? 'inline' : 'none'; }
+}
+
+/* ── Modal ── */
+function openDemoModal(){
+  document.getElementById('demo-modal').classList.add('open');
+  document.body.style.overflow='hidden';
+  setTimeout(()=>document.getElementById('d-name').focus(),50);
+}
+function closeDemoModal(){
+  document.getElementById('demo-modal').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDemoModal(); });
+
+async function submitDemo(e){
+  e.preventDefault();
+  const btn=document.getElementById('demo-submit'), label=document.getElementById('demo-btn-label'), errEl=document.getElementById('demo-error');
+  errEl.style.display='none'; btn.disabled=true; label.textContent='Sending…';
+  try{
+    const res=await fetch('/book-demo',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:document.getElementById('d-name').value,email:document.getElementById('d-email').value,
+        company:document.getElementById('d-company').value,phone:document.getElementById('d-phone').value,
+        message:document.getElementById('d-message').value})});
+    if(res.ok){ document.getElementById('demo-form').style.display='none'; document.getElementById('demo-success').style.display='block'; }
+    else{ const d=await res.json().catch(()=>({})); errEl.textContent=d.detail||'Something went wrong.'; errEl.style.display='block'; btn.disabled=false; label.textContent='Request Demo'; }
+  }catch{ errEl.textContent='Network error. Please try again.'; errEl.style.display='block'; btn.disabled=false; label.textContent='Request Demo'; }
+}
+</script>
+</body>
+</html>
