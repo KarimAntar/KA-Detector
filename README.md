@@ -190,6 +190,37 @@ curl -s -H 'Host: vm.karims.dev' http://127.0.0.1/ | grep -o "Voicemail Detector
 ```
 If those match, the landing page is live — point `vm.karims.dev`'s DNS at this box.
 
+### WebSocket / WSS (`/ws/transcribe`) not connecting
+The streaming endpoint is `wss://<host>/ws/transcribe?api_key=<API_KEY>`. Two
+distinct causes:
+
+**a) The API itself doesn't upgrade (handshake hangs / no `101`).** uvicorn needs a
+WebSocket library; if the venv lacks `websockets`, the upgrade silently stalls.
+Test direct to the API (bypassing Caddy):
+```bash
+KEY=$(sudo systemctl show voicemail-api.service -p Environment | tr ' ' '\n' | sed -n 's/.*API_KEY=//p' | head -1)
+curl -v -N --max-time 4 -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+  -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
+  "http://127.0.0.1:8808/ws/transcribe?api_key=$KEY" 2>&1 | grep -i 'HTTP\|101'
+```
+No `101` (hang / 0 bytes) → install deps and restart:
+```bash
+API_DIR=$WORKSPACE/voicemail_api
+"$API_DIR/.venv/bin/pip" install -r "$API_DIR/requirements.txt"   # pulls uvicorn[standard] + websockets
+sudo systemctl restart voicemail-api.service
+```
+`deploy.sh` now re-syncs requirements every run and includes a WebSocket check, so
+this is caught automatically going forward.
+
+**b) Caddy doesn't proxy the WS path on that host.** `ss.karims.dev` proxies
+everything to `:8808` (WS works). `vm.karims.dev` only proxies `/auth /admin
+/book-demo` — **not `/ws/*`** — so `wss://vm.karims.dev/ws/transcribe` hits the
+static file server and never upgrades. Connect via `ss.karims.dev`, or add a
+`reverse_proxy /ws/* 127.0.0.1:8808` block to the `vm.karims.dev` site. Caddy
+upgrades WebSockets automatically on any `reverse_proxy` — no extra directive
+needed. (Also confirm DNS for the host points at this box and `:443` is reachable,
+or the `wss://` TLS handshake will fail / hit a different server.)
+
 ### `auth: 000` / `curl` can't connect to `:8808`
 The API isn't listening — it's crash-looping or stopped. `is-active` will say
 `activating`/`failed`; read the journal for the real error (USER, missing module,

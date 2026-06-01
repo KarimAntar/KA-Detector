@@ -186,15 +186,23 @@ for f in server.py client.py run.sh README.md requirements.txt; do
   fi
 done
 
-# Create the venv only if it does not already exist (never rebuild a live one).
+# Ensure the venv exists, then ALWAYS sync requirements into it. We preserve an
+# existing venv (don't rebuild it), but we do (idempotently) install the pinned
+# requirements every run — otherwise an existing-but-incomplete venv can be
+# missing a dependency (e.g. the websockets lib uvicorn needs for /ws/*) and the
+# API will silently fail to upgrade WebSocket connections. Set PIP_SYNC=0 to skip.
+PIP_SYNC="${PIP_SYNC:-1}"
 if [[ ! -d "$API_DIR/.venv" ]]; then
-  warn "No venv at $API_DIR/.venv — creating one and installing requirements"
+  warn "No venv at $API_DIR/.venv — creating it"
   python3 -m venv "$API_DIR/.venv"
-  "$API_DIR/.venv/bin/pip" install --upgrade pip
-  "$API_DIR/.venv/bin/pip" install -r "$API_DIR/requirements.txt" || \
-    warn "pip install reported errors — review requirements.txt"
+  "$API_DIR/.venv/bin/pip" install --upgrade pip -q || true
+fi
+if [[ "$PIP_SYNC" == "1" && -x "$API_DIR/.venv/bin/pip" ]]; then
+  log "Syncing Python requirements into venv (incl. uvicorn[standard] for WebSockets)"
+  "$API_DIR/.venv/bin/pip" install -q -r "$API_DIR/requirements.txt" \
+    || warn "pip install reported errors — review requirements.txt"
 else
-  log "Existing venv preserved (run pip install -r requirements.txt manually if deps changed)"
+  log "PIP_SYNC=0 — skipping requirements install"
 fi
 
 # 2b) ss-whisper config (phrases.txt / dnc.txt) -------------------------------
@@ -308,6 +316,23 @@ if wait_http "http://127.0.0.1:8808/admin/phrases" "vm.karims.dev" 40 "200 401";
 else
   err "API NOT healthy (HTTP $REPLY)"
   dump_journal voicemail-api.service 30
+  OVERALL_OK=0
+fi
+
+# WebSocket upgrade check: uvicorn needs a ws library (websockets) to serve
+# /ws/transcribe. If it's missing the upgrade silently hangs — verify we get 101.
+log "WebSocket check: /ws/transcribe (expect 101 Switching Protocols)"
+WS_KEY="$(systemctl show voicemail-api.service -p Environment 2>/dev/null \
+          | tr ' ' '\n' | sed -n 's/^Environment=API_KEY=//p; s/^API_KEY=//p' | head -1)"
+ws_status="$(curl -s -i -N --max-time 6 \
+  -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+  -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
+  "http://127.0.0.1:8808/ws/transcribe?api_key=${WS_KEY}" 2>/dev/null | grep -m1 -oE '\b101\b' || true)"
+if [[ "$ws_status" == "101" ]]; then
+  log "WebSocket OK (101)"
+else
+  warn "WebSocket upgrade did NOT return 101 — uvicorn likely lacks the 'websockets' lib."
+  warn "  Fix: $API_DIR/.venv/bin/pip install -r $API_DIR/requirements.txt && sudo systemctl restart voicemail-api.service"
   OVERALL_OK=0
 fi
 
