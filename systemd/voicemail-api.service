@@ -16,7 +16,7 @@ User=ubuntu
 Environment=WHISPER_CPP_PATH=/home/ubuntu/.openclaw/workspace/whisper.cpp
 Environment=WHISPER_MODEL_PATH=/home/ubuntu/.openclaw/workspace/whisper.cpp/models/ggml-tiny.bin
 Environment=WHISPER_SERVER_URL=http://127.0.0.1:9305
-Environment=UVICORN_WORKERS=2
+Environment=UVICORN_WORKERS=1
 Environment=API_KEY=5aa1a3c98a02d193d675b304e64504d9
 Environment=BASIC_AUTH_USER=karim
 Environment=BASIC_AUTH_PASS=ZawZaw24@!#
