@@ -303,7 +303,7 @@ async function req(path, method = 'GET', body = null){
   const key = document.getElementById('apiKey').value.trim();
   const headers = { 'Content-Type': 'application/json' };
   if(key) headers['X-API-Key'] = key;
-  const opts = { method, headers };
+  const opts = { method, headers, cache: 'no-store' };
   if(body) opts.body = JSON.stringify(body);
   const url = apiBase + path;
   try{

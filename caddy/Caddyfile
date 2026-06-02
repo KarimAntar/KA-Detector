@@ -1,6 +1,14 @@
 # Caddyfile - trimmed and cleaned
 vm.karims.dev, :80 {
 	root * /usr/share/caddy
+
+	# Never let the browser serve a stale HTML page — force revalidation/fresh fetch.
+	# (Static assets like images/css keep their normal caching.)
+	@html path *.html /
+	header @html Cache-Control "no-cache, no-store, must-revalidate"
+	header @html Pragma "no-cache"
+	header @html Expires "0"
+
 	file_server browse
 
 	# Proxy /auth and /admin to voicemail-api
