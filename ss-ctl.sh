@@ -91,8 +91,13 @@ health_check() {
      || curl -sS -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$WHISPER_PORT/" 2>/dev/null | grep -qE '^[24]'; then
     echo "${GRN}OK${R}"; else echo "${RED}no response${R}"; fi
   echo -n "  voicemail-api  (:$API_PORT) ... "
-  local code
-  code="$(curl -sS -m 5 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$API_PORT/admin/phrases" 2>/dev/null)"
+  local code="000" i=0
+  # poll up to ~10s — uvicorn reports "active" before it finishes binding the port
+  while (( i < 10 )); do
+    code="$(curl -sS -m 3 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$API_PORT/admin/phrases" 2>/dev/null)"
+    [[ "$code" =~ ^(200|401)$ ]] && break
+    sleep 1; ((i++))
+  done
   if [[ "$code" =~ ^(200|401)$ ]]; then echo "${GRN}OK (HTTP $code)${R}"; else echo "${RED}HTTP ${code:-000}${R}"; fi
 }
 
