@@ -22,7 +22,9 @@ set -uo pipefail
 # ----------------------------------------------------------------------------
 # Configuration / detection
 # ----------------------------------------------------------------------------
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# resolve symlinks so a /usr/local/bin/ssctl shortcut still finds the repo
+_SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+REPO_DIR="$(cd "$(dirname "$_SELF")" && pwd)"
 BRANCH="${BRANCH:-master}"
 SYSTEMD_DIR="/etc/systemd/system"
 SS_CONFIG_DIR="${SS_CONFIG_DIR:-/etc/ss-whisper}"
