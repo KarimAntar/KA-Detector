@@ -233,8 +233,30 @@ set_unit_env() {  # set_unit_env <KEY> <VALUE>  — set/replace an Environment= 
   fi
 }
 
-# Pick a faster-whisper model, install the lib if needed, switch the engine to
-# faster-whisper, persist, restart + health-check. Reused by option 2 and 3.
+# Apply faster-whisper as the active engine with a given model (no prompting).
+# Installs the lib if needed, persists engine + model, restarts + health-checks.
+apply_fw_engine() {  # apply_fw_engine [fw_model]
+  local fwm="${1:-$(current_fw_model)}"; fwm="${fwm:-tiny.en}"
+
+  if [[ ! -x "$VENV_PIP" ]]; then echo "${RED}venv pip not found at $VENV_PIP${R}"; return 1; fi
+  if ! "$API_DIR/.venv/bin/python" -c "import faster_whisper" 2>/dev/null; then
+    echo "${YLW}Installing faster-whisper into the venv (one-time, downloads CTranslate2)...${R}"
+    "$VENV_PIP" install -q faster-whisper || { echo "${RED}pip install failed${R}"; return 1; }
+  fi
+
+  set_unit_env TRANSCRIBE_ENGINE fasterwhisper
+  set_unit_env FW_MODEL "$fwm"
+  echo "fasterwhisper" | $SUDO tee "$SS_CONFIG_DIR/engine"   >/dev/null
+  echo "$fwm"          | $SUDO tee "$SS_CONFIG_DIR/fw-model" >/dev/null
+
+  $SUDO systemctl daemon-reload
+  echo "${DIM}Restarting API (faster-whisper: ${fwm}) — first use of a model downloads it...${R}"
+  restart_one "$API_SVC"
+  echo; health_check
+  echo "${DIM}Tip: curl -s 127.0.0.1:$API_PORT/health  shows engine + fw_loaded.${R}"
+}
+
+# Pick a faster-whisper model (this is where model selection lives).
 action_switch_fw_model() {
   clear
   echo "${B}Switch faster-whisper model${R}   ${DIM}(current: ${CYN}$(current_fw_model)${DIM})${R}"
@@ -249,28 +271,8 @@ action_switch_fw_model() {
   [[ "$m" =~ ^[0-9]+$ ]] || { echo "${RED}invalid${R}"; return; }
   (( m == 0 )) && return
   local idx=$((m-1)); (( idx>=0 && idx<${#FW_MODELS[@]} )) || { echo "${RED}out of range${R}"; return; }
-  local fwm="${FW_MODELS[$idx]}"
-
-  # ensure faster-whisper is installed in the API venv
-  if [[ ! -x "$VENV_PIP" ]]; then echo "${RED}venv pip not found at $VENV_PIP${R}"; return; fi
-  if ! "$API_DIR/.venv/bin/python" -c "import faster_whisper" 2>/dev/null; then
-    echo "${YLW}Installing faster-whisper into the venv (one-time, downloads CTranslate2)...${R}"
-    "$VENV_PIP" install -q faster-whisper || { echo "${RED}pip install failed${R}"; return; }
-  else
-    echo "${GRN}faster-whisper already installed.${R}"
-  fi
-
-  set_unit_env TRANSCRIBE_ENGINE fasterwhisper
-  set_unit_env FW_MODEL "$fwm"
-  echo "fasterwhisper" | $SUDO tee "$SS_CONFIG_DIR/engine"   >/dev/null
-  echo "$fwm"          | $SUDO tee "$SS_CONFIG_DIR/fw-model" >/dev/null
-
-  $SUDO systemctl daemon-reload
-  echo "${DIM}Restarting API — first use of ${fwm} downloads it, may take a moment...${R}"
-  restart_one "$API_SVC"
-  echo; health_check
-  echo "${GRN}faster-whisper model set to ${fwm}.${R}"
-  echo "${DIM}Tip: curl -s 127.0.0.1:$API_PORT/health  shows engine + fw_loaded.${R}"
+  apply_fw_engine "${FW_MODELS[$idx]}"
+  echo "${GRN}faster-whisper model set to ${FW_MODELS[$idx]}.${R}"
 }
 
 action_switch_engine() {
@@ -291,7 +293,12 @@ action_switch_engine() {
       echo; health_check
       echo "${GRN}Engine set to whisper.cpp${R} (ggml model: ${CYN}$(current_model)${R})."
       ;;
-    2) action_switch_fw_model ;;   # selecting faster-whisper also picks its model
+    2)
+      # use the previously-picked model — no prompt. Change it via option 2.
+      echo "${DIM}Using faster-whisper model: ${CYN}$(current_fw_model)${R}${DIM} (change it via menu option 2)${R}"
+      apply_fw_engine "$(current_fw_model)"
+      echo "${GRN}Engine set to faster-whisper (${CYN}$(current_fw_model)${GRN}).${R}"
+      ;;
     0) return ;;
     *) echo "${RED}invalid${R}" ;;
   esac
