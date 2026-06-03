@@ -503,5 +503,45 @@ main_menu() {
   done
 }
 
-detect_paths
-main_menu
+# ----------------------------------------------------------------------------
+# Self-update: pull the latest repo (control panel + scripts), then relaunch.
+# ----------------------------------------------------------------------------
+do_update() {
+  echo "${B}Updating control panel + repo${R}   ${DIM}($REPO_DIR @ $BRANCH)${R}"
+  if [[ ! -d "$REPO_DIR/.git" ]]; then echo "${RED}not a git checkout: $REPO_DIR${R}"; exit 1; fi
+  local before after
+  before="$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null)"
+  if [[ -n "${GH_TOKEN:-}" ]]; then
+    local url; url="$(git -C "$REPO_DIR" remote get-url origin)"
+    url="$(printf '%s' "$url" | sed -E 's#https://([^@/]+@)?#https://x:'"${GH_TOKEN}"'@#')"
+    git -C "$REPO_DIR" pull --ff-only "$url" "$BRANCH" || { echo "${RED}pull failed${R}"; exit 1; }
+  else
+    git -C "$REPO_DIR" pull --ff-only origin "$BRANCH" || { echo "${RED}pull failed (private repo? set GH_TOKEN, or bake the token into 'origin')${R}"; exit 1; }
+  fi
+  after="$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null)"
+  chmod +x "$REPO_DIR"/ss-ctl.sh "$REPO_DIR"/deploy.sh "$REPO_DIR"/setup.sh 2>/dev/null || true
+  if [[ "$before" == "$after" ]]; then
+    echo "${GRN}Already up to date${R} ($after)"
+  else
+    echo "${GRN}Updated ${before} -> ${after}${R}"
+    echo "${DIM}Note: API/Caddy/server.py changes need a redeploy (menu option 6) to take effect.${R}"
+  fi
+  echo "${DIM}Relaunching the updated control panel...${R}"; sleep 1
+  exec "$_SELF"   # re-exec the now-updated script (opens the menu)
+}
+
+usage() {
+  cat <<EOF
+${B}vm${R} — SS-whisper control panel
+  vm                 open the interactive menu
+  vm -update         git pull the latest repo + control panel, then relaunch
+  vm -h | --help     this help
+EOF
+}
+
+case "${1:-}" in
+  -update|--update|update) do_update ;;
+  -h|--help|help)          usage; exit 0 ;;
+  "")                      detect_paths; main_menu ;;
+  *)                       echo "${RED}unknown option: $1${R}"; usage; exit 1 ;;
+esac
