@@ -72,6 +72,21 @@ current_engine() {
   fi
 }
 
+current_fw_model() {
+  if [[ -f "$SS_CONFIG_DIR/fw-model" ]]; then
+    tr -d '[:space:]' <"$SS_CONFIG_DIR/fw-model"
+  elif [[ -f "$SYSTEMD_DIR/$API_SVC" ]]; then
+    grep -oE '^Environment=FW_MODEL=.*' "$SYSTEMD_DIR/$API_SVC" | head -1 | cut -d= -f2
+  else
+    echo "tiny.en"
+  fi
+}
+
+# the model that actually drives transcription right now (depends on active engine)
+active_model() {
+  if [[ "$(current_engine)" == "fasterwhisper" ]]; then current_fw_model; else current_model; fi
+}
+
 current_model() {
   if [[ -f "$SS_CONFIG_DIR/whisper-model" ]]; then
     tr -d '[:space:]' <"$SS_CONFIG_DIR/whisper-model"
@@ -218,11 +233,51 @@ set_unit_env() {  # set_unit_env <KEY> <VALUE>  — set/replace an Environment= 
   fi
 }
 
+# Pick a faster-whisper model, install the lib if needed, switch the engine to
+# faster-whisper, persist, restart + health-check. Reused by option 2 and 3.
+action_switch_fw_model() {
+  clear
+  echo "${B}Switch faster-whisper model${R}   ${DIM}(current: ${CYN}$(current_fw_model)${DIM})${R}"
+  echo
+  local i
+  for i in "${!FW_MODELS[@]}"; do
+    printf "  ${B}%2d${R}) %-18s ${DIM}%s${R}\n" "$((i+1))" "${FW_MODELS[$i]}" "${FW_DESC[$i]}"
+  done
+  echo "   ${B} 0${R}) cancel"
+  echo
+  local m; read -rp "Pick model number: " m
+  [[ "$m" =~ ^[0-9]+$ ]] || { echo "${RED}invalid${R}"; return; }
+  (( m == 0 )) && return
+  local idx=$((m-1)); (( idx>=0 && idx<${#FW_MODELS[@]} )) || { echo "${RED}out of range${R}"; return; }
+  local fwm="${FW_MODELS[$idx]}"
+
+  # ensure faster-whisper is installed in the API venv
+  if [[ ! -x "$VENV_PIP" ]]; then echo "${RED}venv pip not found at $VENV_PIP${R}"; return; fi
+  if ! "$API_DIR/.venv/bin/python" -c "import faster_whisper" 2>/dev/null; then
+    echo "${YLW}Installing faster-whisper into the venv (one-time, downloads CTranslate2)...${R}"
+    "$VENV_PIP" install -q faster-whisper || { echo "${RED}pip install failed${R}"; return; }
+  else
+    echo "${GRN}faster-whisper already installed.${R}"
+  fi
+
+  set_unit_env TRANSCRIBE_ENGINE fasterwhisper
+  set_unit_env FW_MODEL "$fwm"
+  echo "fasterwhisper" | $SUDO tee "$SS_CONFIG_DIR/engine"   >/dev/null
+  echo "$fwm"          | $SUDO tee "$SS_CONFIG_DIR/fw-model" >/dev/null
+
+  $SUDO systemctl daemon-reload
+  echo "${DIM}Restarting API — first use of ${fwm} downloads it, may take a moment...${R}"
+  restart_one "$API_SVC"
+  echo; health_check
+  echo "${GRN}faster-whisper model set to ${fwm}.${R}"
+  echo "${DIM}Tip: curl -s 127.0.0.1:$API_PORT/health  shows engine + fw_loaded.${R}"
+}
+
 action_switch_engine() {
   clear
   echo "${B}Switch transcription engine${R}   ${DIM}(current: ${CYN}$(current_engine)${DIM})${R}"
   echo
-  echo "   ${B}1${R}) whisper.cpp     ${DIM}lightweight C++ (current default); batch-per-chunk${R}"
+  echo "   ${B}1${R}) whisper.cpp     ${DIM}lightweight C++ (default); uses the ggml model (option 2)${R}"
   echo "   ${B}2${R}) faster-whisper  ${DIM}WhisperLive's CTranslate2 engine; resident, int8, lower latency${R}"
   echo "   ${B}0${R}) cancel"
   echo
@@ -234,45 +289,21 @@ action_switch_engine() {
       $SUDO systemctl daemon-reload
       restart_one "$API_SVC"
       echo; health_check
-      echo "${GRN}Engine set to whisper.cpp.${R}"
+      echo "${GRN}Engine set to whisper.cpp${R} (ggml model: ${CYN}$(current_model)${R})."
       ;;
-    2)
-      # pick a faster-whisper model
-      echo
-      echo "${B}faster-whisper model:${R}"
-      local i
-      for i in "${!FW_MODELS[@]}"; do
-        printf "  ${B}%d${R}) %-18s ${DIM}%s${R}\n" "$((i+1))" "${FW_MODELS[$i]}" "${FW_DESC[$i]}"
-      done
-      local m; read -rp "Pick model number [1]: " m; m="${m:-1}"
-      [[ "$m" =~ ^[0-9]+$ ]] || { echo "${RED}invalid${R}"; return; }
-      local idx=$((m-1)); (( idx>=0 && idx<${#FW_MODELS[@]} )) || { echo "${RED}out of range${R}"; return; }
-      local fwm="${FW_MODELS[$idx]}"
-
-      # ensure faster-whisper is installed in the API venv
-      if [[ ! -x "$VENV_PIP" ]]; then echo "${RED}venv pip not found at $VENV_PIP${R}"; return; fi
-      if ! "$API_DIR/.venv/bin/python" -c "import faster_whisper" 2>/dev/null; then
-        echo "${YLW}Installing faster-whisper into the venv (one-time, downloads CTranslate2)...${R}"
-        "$VENV_PIP" install -q faster-whisper || { echo "${RED}pip install failed${R}"; return; }
-      else
-        echo "${GRN}faster-whisper already installed.${R}"
-      fi
-
-      set_unit_env TRANSCRIBE_ENGINE fasterwhisper
-      set_unit_env FW_MODEL "$fwm"
-      echo "fasterwhisper" | $SUDO tee "$SS_CONFIG_DIR/engine"   >/dev/null
-      echo "$fwm"          | $SUDO tee "$SS_CONFIG_DIR/fw-model" >/dev/null
-
-      $SUDO systemctl daemon-reload
-      echo "${DIM}Restarting API — first start downloads the ${fwm} model, may take a moment...${R}"
-      restart_one "$API_SVC"
-      echo; health_check
-      echo "${GRN}Engine set to faster-whisper (${fwm}).${R}"
-      echo "${DIM}Tip: check  curl -s 127.0.0.1:$API_PORT/health  — it shows engine + fw_loaded.${R}"
-      ;;
+    2) action_switch_fw_model ;;   # selecting faster-whisper also picks its model
     0) return ;;
     *) echo "${RED}invalid${R}" ;;
   esac
+}
+
+# Engine-aware model switch: routes to the right model list for the active engine.
+action_switch_model_auto() {
+  if [[ "$(current_engine)" == "fasterwhisper" ]]; then
+    action_switch_fw_model
+  else
+    action_switch_model
+  fi
 }
 
 action_status() {
@@ -281,7 +312,9 @@ action_status() {
   printf "  %-24s %s\n" "$CADDY_SVC"   "$(state_colored "$CADDY_SVC")"
   printf "  %-24s %s\n" "$WHISPER_SVC" "$(state_colored "$WHISPER_SVC")"
   printf "  %-24s %s\n" "$API_SVC"     "$(state_colored "$API_SVC")"
-  echo "  ${DIM}model: ${R}${CYN}$(current_model)${R}   ${DIM}engine: ${R}${CYN}$(current_engine)${R}   ${DIM}workspace: ${R}$WORKSPACE"
+  echo "  ${DIM}engine: ${R}${CYN}$(current_engine)${R}   ${DIM}active model: ${R}${CYN}$(active_model)${R}"
+  echo "  ${DIM}(whisper.cpp ggml: ${R}$(current_model)${DIM}   ·   faster-whisper: ${R}$(current_fw_model)${DIM})${R}"
+  echo "  ${DIM}workspace: ${R}$WORKSPACE"
   echo
   health_check
 }
@@ -426,12 +459,12 @@ main_menu() {
     echo "${MAG}${B}╔══════════════════════════════════════════════╗${R}"
     echo "${MAG}${B}║        SS-whisper  ·  control panel           ║${R}"
     echo "${MAG}${B}╚══════════════════════════════════════════════╝${R}"
-    printf "  caddy:%s  whisper:%s  api:%s   ${DIM}model:${R}${CYN}%s${R} ${DIM}engine:${R}${CYN}%s${R}\n" \
-      "$(state_colored "$CADDY_SVC")" "$(state_colored "$WHISPER_SVC")" "$(state_colored "$API_SVC")" "$(current_model)" "$(current_engine)"
+    printf "  caddy:%s  whisper:%s  api:%s   ${DIM}engine:${R}${CYN}%s${R} ${DIM}model:${R}${CYN}%s${R}\n" \
+      "$(state_colored "$CADDY_SVC")" "$(state_colored "$WHISPER_SVC")" "$(state_colored "$API_SVC")" "$(current_engine)" "$(active_model)"
     echo "  ${DIM}repo:${R} $REPO_DIR  ${DIM}ws:${R} $WORKSPACE"
     echo
     echo "   ${B}1${R}) Status + health check"
-    echo "   ${B}2${R}) Switch whisper model"
+    echo "   ${B}2${R}) Switch model  ${DIM}(for active engine: $(current_engine))${R}"
     echo "   ${B}3${R}) Switch transcription engine  ${DIM}(whisper.cpp / faster-whisper)${R}"
     echo "   ${B}4${R}) Restart services"
     echo "   ${B}5${R}) Check repo for updates  (pull + redeploy)"
@@ -446,7 +479,7 @@ main_menu() {
     local c; read -rp "${B}Select:${R} " c
     case "$c" in
       1) action_status ;;
-      2) action_switch_model ;;
+      2) action_switch_model_auto ;;
       3) action_switch_engine ;;
       4) action_restart ;;
       5) action_check_updates ;;
