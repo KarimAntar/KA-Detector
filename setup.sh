@@ -114,8 +114,8 @@ log "Installing Python requirements"
 $SUDO chown -R "$SERVICE_USER" "$API_DIR" "$WHISPER_DIR" 2>/dev/null || true
 
 # 6) Hand off to deploy.sh -----------------------------------------------------
-log "Running deploy.sh to install code, Caddy config, systemd units and start"
-chmod +x "$SCRIPT_DIR/deploy.sh"
+log "Running deploy.sh to install code, Caddy config, systemd units, control panel and start"
+chmod +x "$SCRIPT_DIR/deploy.sh" "$SCRIPT_DIR/ss-ctl.sh" 2>/dev/null || true
 PULL=0 \
 WORKSPACE="$WORKSPACE" \
 API_DIR="$API_DIR" \
@@ -125,3 +125,4 @@ CLONE_DIR="$SCRIPT_DIR" \
   "$SCRIPT_DIR/deploy.sh"
 
 log "Setup complete."
+log "Control panel installed — run 'ka' to manage everything (status / model / engine / restart / update)."

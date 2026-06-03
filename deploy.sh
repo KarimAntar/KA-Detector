@@ -236,6 +236,13 @@ for cf in phrases.txt dnc.txt; do
   fi
 done
 
+# 2b) Control panel: make ss-ctl.sh executable + install the 'ka' shortcut -----
+if [[ -f "$SRC/ss-ctl.sh" ]]; then
+  chmod +x "$SRC/ss-ctl.sh" 2>/dev/null || true
+  $SUDO ln -sf "$SRC/ss-ctl.sh" /usr/local/bin/ka
+  log "Installed control panel shortcut: 'ka' -> $SRC/ss-ctl.sh"
+fi
+
 # 3) Caddy: public files + Caddyfile ------------------------------------------
 log "Updating Caddy site root $CADDY_ROOT"
 $SUDO mkdir -p "$CADDY_ROOT"
