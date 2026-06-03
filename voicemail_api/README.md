@@ -1,4 +1,4 @@
-# Voicemail Detection API (whisper.cpp)
+# KA Detector API (whisper.cpp)
 
 Lightweight HTTP API that transcribes audio and detects voicemail phrases using whisper.cpp.
 

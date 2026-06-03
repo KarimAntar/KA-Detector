@@ -1,4 +1,4 @@
-# SS-whisper.cpp — Voicemail API + Caddy deployment
+# KA Detector API — whisper.cpp + Caddy deployment
 
 Backup and deployment bundle for the **voicemail detection API** (FastAPI +
 whisper.cpp) and the **Caddy** reverse proxy / static site that front it.

@@ -464,7 +464,7 @@ main_menu() {
   while true; do
     clear
     echo "${MAG}${B}╔══════════════════════════════════════════════╗${R}"
-    echo "${MAG}${B}║        SS-whisper  ·  control panel           ║${R}"
+    echo "${MAG}${B}║        KA Detector  ·  control panel          ║${R}"
     echo "${MAG}${B}╚══════════════════════════════════════════════╝${R}"
     printf "  caddy:%s  whisper:%s  api:%s   ${DIM}engine:${R}${CYN}%s${R} ${DIM}model:${R}${CYN}%s${R}\n" \
       "$(state_colored "$CADDY_SVC")" "$(state_colored "$WHISPER_SVC")" "$(state_colored "$API_SVC")" "$(current_engine)" "$(active_model)"
@@ -532,10 +532,10 @@ do_update() {
 
 usage() {
   cat <<EOF
-${B}vm${R} — SS-whisper control panel
-  vm                 open the interactive menu
-  vm -update         git pull the latest repo + control panel, then relaunch
-  vm -h | --help     this help
+${B}ka${R} — KA Detector control panel
+  ka                 open the interactive menu
+  ka -update         git pull the latest repo + control panel, then relaunch
+  ka -h | --help     this help
 EOF
 }
 

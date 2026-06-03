@@ -1,5 +1,5 @@
 [Unit]
-Description=Voicemail Detection API (whisper.cpp)
+Description=KA Detector API (whisper.cpp)
 After=network.target whisper-server.service
 Wants=whisper-server.service
 

@@ -187,7 +187,7 @@ async def lifespan(app: FastAPI):
     _http_client = None
 
 
-app = FastAPI(title="Voicemail Detection API", version="0.5.0", lifespan=lifespan)
+app = FastAPI(title="KA Detector API", version="0.5.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
