@@ -87,6 +87,35 @@ active_model() {
   if [[ "$(current_engine)" == "fasterwhisper" ]]; then current_fw_model; else current_model; fi
 }
 
+current_workers() {
+  if [[ -f "$SS_CONFIG_DIR/workers" ]]; then
+    tr -dc '0-9' <"$SS_CONFIG_DIR/workers"
+  elif [[ -f "$SYSTEMD_DIR/$API_SVC" ]]; then
+    grep -oE '^Environment=UVICORN_WORKERS=[0-9]+' "$SYSTEMD_DIR/$API_SVC" | head -1 | grep -oE '[0-9]+'
+  else
+    echo "2"
+  fi
+}
+
+# Recommend a worker count from cores, RAM and the active engine.
+recommend_workers() {
+  local cores ram_gb eng rec
+  cores="$(nproc 2>/dev/null || echo 1)"
+  ram_gb="$(awk '/MemTotal/{printf "%d", $2/1024/1024 + 0.5}' /proc/meminfo 2>/dev/null || echo 1)"
+  (( ram_gb < 1 )) && ram_gb=1
+  eng="$(current_engine)"
+  if [[ "$eng" == "fasterwhisper" ]]; then
+    # faster-whisper loads a model copy per worker -> bound by RAM (~1 worker / 2GB)
+    rec=$(( ram_gb / 2 )); (( rec < 1 )) && rec=1
+    (( rec > cores )) && rec=$cores
+  else
+    # whisper.cpp workers are light (model is in whisper-server) -> bound by cores
+    rec=$cores; (( rec > 4 )) && rec=4
+  fi
+  (( rec < 1 )) && rec=1
+  echo "$cores $ram_gb $eng $rec"
+}
+
 current_model() {
   if [[ -f "$SS_CONFIG_DIR/whisper-model" ]]; then
     tr -d '[:space:]' <"$SS_CONFIG_DIR/whisper-model"
@@ -304,6 +333,52 @@ action_switch_engine() {
   esac
 }
 
+action_set_workers() {
+  clear
+  echo "${B}Set uvicorn workers${R}   ${DIM}(current: ${CYN}$(current_workers)${DIM})${R}"
+  local info cores ram_gb eng rec
+  info="$(recommend_workers)"; read -r cores ram_gb eng rec <<<"$info"
+  echo "  ${DIM}this box:${R} ${cores} vCPU · ${ram_gb} GB RAM · engine ${CYN}${eng}${R}"
+  echo "  ${GRN}recommended: ${rec}${R}"
+  if [[ "$eng" == "fasterwhisper" ]]; then
+    echo "  ${DIM}note: faster-whisper loads one model copy PER worker — more workers = more RAM.${R}"
+  else
+    echo "  ${DIM}note: whisper.cpp workers are light (model lives in whisper-server).${R}"
+  fi
+  echo
+  echo "   ${B}1${R}) 1   ${DIM}low RAM (1 GB boxes) / single-call${R}"
+  echo "   ${B}2${R}) 2   ${DIM}good default for 2–4 GB${R}"
+  echo "   ${B}3${R}) 4   ${DIM}6+ cores / 8 GB+ (whisper.cpp)${R}"
+  echo "   ${B}4${R}) use recommended (${rec})"
+  echo "   ${B}5${R}) custom — type a number"
+  echo "   ${B}0${R}) cancel"
+  echo
+  local c n; read -rp "Choice: " c
+  case "$c" in
+    1) n=1 ;;
+    2) n=2 ;;
+    3) n=4 ;;
+    4) n="$rec" ;;
+    5) read -rp "Enter worker count (1-$(( cores>8?cores:8 ))): " n ;;
+    0) return ;;
+    *) echo "${RED}invalid${R}"; return ;;
+  esac
+  [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 )) || { echo "${RED}must be a positive integer${R}"; return; }
+  if (( n > cores )); then
+    echo "${YLW}warning: ${n} workers > ${cores} cores — they'll contend for CPU.${R}"
+  fi
+  if [[ "$eng" == "fasterwhisper" ]] && (( n > rec )); then
+    echo "${YLW}warning: ${n} faster-whisper workers may exceed RAM (recommended ${rec}).${R}"
+  fi
+  set_unit_env UVICORN_WORKERS "$n"
+  echo "$n" | $SUDO tee "$SS_CONFIG_DIR/workers" >/dev/null
+  $SUDO systemctl daemon-reload
+  restart_one "$API_SVC"
+  echo; health_check
+  echo "${GRN}uvicorn workers set to ${n}.${R}"
+  echo "${DIM}Verify: ps -ef | grep '[u]vicorn'${R}"
+}
+
 # Engine-aware model switch: routes to the right model list for the active engine.
 action_switch_model_auto() {
   if [[ "$(current_engine)" == "fasterwhisper" ]]; then
@@ -319,7 +394,7 @@ action_status() {
   printf "  %-24s %s\n" "$CADDY_SVC"   "$(state_colored "$CADDY_SVC")"
   printf "  %-24s %s\n" "$WHISPER_SVC" "$(state_colored "$WHISPER_SVC")"
   printf "  %-24s %s\n" "$API_SVC"     "$(state_colored "$API_SVC")"
-  echo "  ${DIM}engine: ${R}${CYN}$(current_engine)${R}   ${DIM}active model: ${R}${CYN}$(active_model)${R}"
+  echo "  ${DIM}engine: ${R}${CYN}$(current_engine)${R}   ${DIM}active model: ${R}${CYN}$(active_model)${R}   ${DIM}workers: ${R}${CYN}$(current_workers)${R}"
   echo "  ${DIM}(whisper.cpp ggml: ${R}$(current_model)${DIM}   ·   faster-whisper: ${R}$(current_fw_model)${DIM})${R}"
   echo "  ${DIM}workspace: ${R}$WORKSPACE"
   echo
@@ -473,14 +548,15 @@ main_menu() {
     echo "   ${B}1${R}) Status + health check"
     echo "   ${B}2${R}) Switch model  ${DIM}(for active engine: $(current_engine))${R}"
     echo "   ${B}3${R}) Switch transcription engine  ${DIM}(whisper.cpp / faster-whisper)${R}"
-    echo "   ${B}4${R}) Restart services"
-    echo "   ${B}5${R}) Check repo for updates  (pull + redeploy)"
-    echo "   ${B}6${R}) Redeploy from repo"
-    echo "   ${B}7${R}) Update / reload Caddy"
-    echo "   ${B}8${R}) View logs"
-    echo "   ${B}9${R}) Edit phrases.txt / dnc.txt"
-    echo "  ${B}10${R}) Reinstall services"
-    echo "  ${B}11${R}) ${RED}Uninstall services${R}"
+    echo "   ${B}4${R}) Set uvicorn workers  ${DIM}(current: $(current_workers))${R}"
+    echo "   ${B}5${R}) Restart services"
+    echo "   ${B}6${R}) Check repo for updates  (pull + redeploy)"
+    echo "   ${B}7${R}) Redeploy from repo"
+    echo "   ${B}8${R}) Update / reload Caddy"
+    echo "   ${B}9${R}) View logs"
+    echo "  ${B}10${R}) Edit phrases.txt / dnc.txt"
+    echo "  ${B}11${R}) Reinstall services"
+    echo "  ${B}12${R}) ${RED}Uninstall services${R}"
     echo "   ${B}0${R}) Quit"
     echo
     local c; read -rp "${B}Select:${R} " c
@@ -488,14 +564,15 @@ main_menu() {
       1) action_status ;;
       2) action_switch_model_auto ;;
       3) action_switch_engine ;;
-      4) action_restart ;;
-      5) action_check_updates ;;
-      6) action_redeploy ;;
-      7) action_update_caddy ;;
-      8) action_logs ;;
-      9) action_edit_config ;;
-      10) action_reinstall ;;
-      11) action_uninstall ;;
+      4) action_set_workers ;;
+      5) action_restart ;;
+      6) action_check_updates ;;
+      7) action_redeploy ;;
+      8) action_update_caddy ;;
+      9) action_logs ;;
+      10) action_edit_config ;;
+      11) action_reinstall ;;
+      12) action_uninstall ;;
       0|q|Q) echo "bye"; exit 0 ;;
       *) echo "${RED}invalid choice${R}"; sleep 1; continue ;;
     esac

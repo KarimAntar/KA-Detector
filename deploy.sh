@@ -58,6 +58,11 @@ _SAVED_FW=""
 [[ -f /etc/ss-whisper/fw-model ]] && _SAVED_FW="$(tr -d '[:space:]' </etc/ss-whisper/fw-model 2>/dev/null || true)"
 FW_MODEL="${FW_MODEL:-${_SAVED_FW:-tiny.en}}"
 
+# uvicorn workers: explicit env > saved choice (ka menu) > 2.
+_SAVED_WORKERS=""
+[[ -f /etc/ss-whisper/workers ]] && _SAVED_WORKERS="$(tr -dc '0-9' </etc/ss-whisper/workers 2>/dev/null || true)"
+UVICORN_WORKERS="${UVICORN_WORKERS:-${_SAVED_WORKERS:-2}}"
+
 # Where the ss-whisper config (phrases.txt / dnc.txt) lives — server.py default.
 SS_CONFIG_DIR="${SS_CONFIG_DIR:-/etc/ss-whisper}"
 
@@ -94,6 +99,7 @@ install_rewritten() {
       -e "s#ggml-${SRC_WHISPER_MODEL}\.bin#ggml-${WHISPER_MODEL}.bin#g" \
       -e "s#^Environment=TRANSCRIBE_ENGINE=.*#Environment=TRANSCRIBE_ENGINE=${TRANSCRIBE_ENGINE}#" \
       -e "s#^Environment=FW_MODEL=.*#Environment=FW_MODEL=${FW_MODEL}#" \
+      -e "s#^Environment=UVICORN_WORKERS=.*#Environment=UVICORN_WORKERS=${UVICORN_WORKERS}#" \
       "$src" > "$tmp"
   $SUDO install -m "$mode" "$tmp" "$dest"
   rm -f "$tmp"

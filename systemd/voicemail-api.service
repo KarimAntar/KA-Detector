@@ -20,7 +20,7 @@ Environment=WHISPER_SERVER_URL=http://127.0.0.1:9305
 Environment=TRANSCRIBE_ENGINE=whispercpp
 Environment=FW_MODEL=tiny.en
 Environment=FW_COMPUTE=int8
-Environment=UVICORN_WORKERS=1
+Environment=UVICORN_WORKERS=2
 Environment=API_KEY=5aa1a3c98a02d193d675b304e64504d9
 Environment=BASIC_AUTH_USER=karim
 Environment=BASIC_AUTH_PASS=ZawZaw24@!#
