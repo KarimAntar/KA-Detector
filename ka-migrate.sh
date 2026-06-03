@@ -103,10 +103,10 @@ fi
 if [[ "$REPO_DIR" != "$NEW_REPO" && ! -e "$NEW_REPO" ]]; then
   log "Renaming repo dir $REPO_DIR -> $NEW_REPO"
   mv "$REPO_DIR" "$NEW_REPO"
-  $SUDO ln -sf "$NEW_REPO/ss-ctl.sh" /usr/local/bin/ka
-  log "Re-pointed 'ka' -> $NEW_REPO/ss-ctl.sh"
+  $SUDO ln -sf "$NEW_REPO/ka-ctl.sh" /usr/local/bin/ka
+  log "Re-pointed 'ka' -> $NEW_REPO/ka-ctl.sh"
 else
-  $SUDO ln -sf "$REPO_DIR/ss-ctl.sh" /usr/local/bin/ka 2>/dev/null || true
+  $SUDO ln -sf "$REPO_DIR/ka-ctl.sh" /usr/local/bin/ka 2>/dev/null || true
 fi
 
 echo

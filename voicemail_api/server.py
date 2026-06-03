@@ -957,7 +957,7 @@ async def auth_login(request: Request):
         token = _sign_token(BASIC_AUTH_USER or "admin")
         response = JSONResponse({"status": "ok"})
         response.set_cookie(
-            "ss_token", token,
+            "ka_token", token,
             httponly=True, samesite="lax", max_age=SESSION_TOKEN_TTL,
         )
         return response
@@ -965,8 +965,8 @@ async def auth_login(request: Request):
 
 
 @app.get("/auth/verify")
-async def auth_verify(ss_token: Optional[str] = Cookie(None)):
-    if ss_token and _verify_session_token(ss_token):
+async def auth_verify(ka_token: Optional[str] = Cookie(None)):
+    if ka_token and _verify_session_token(ka_token):
         return JSONResponse({"status": "ok"})
     raise HTTPException(status_code=401, detail="Unauthorized")
 
@@ -974,7 +974,7 @@ async def auth_verify(ss_token: Optional[str] = Cookie(None)):
 @app.post("/auth/logout")
 async def auth_logout():
     response = JSONResponse({"status": "ok"})
-    response.delete_cookie("ss_token")
+    response.delete_cookie("ka_token")
     return response
 
 

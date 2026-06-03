@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Sign In — SS Voicemail API</title>
+<title>Sign In — KA Detector API</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -127,7 +127,7 @@ tailwind.config = {
     <!-- Logo -->
     <div class="logo">
       <span class="logo-icon">voicemail</span>
-      <span class="logo-text">SS Voicemail API</span>
+      <span class="logo-text">KA Detector API</span>
     </div>
 
     <h1 style="font-size:24px;font-weight:700;margin:0 0 6px;color:#dfe2f3;">Admin Sign In</h1>
@@ -191,7 +191,7 @@ tailwind.config = {
 <script>
   // Redirect if already logged in
   fetch('/auth/verify', { credentials: 'include' })
-    .then(r => { if (r.ok) window.location.replace('/ss.html'); })
+    .then(r => { if (r.ok) window.location.replace('/ka.html'); })
     .catch(() => {});
 
   function togglePw() {
@@ -236,7 +236,7 @@ tailwind.config = {
         body: JSON.stringify({ password }),
       });
       if (res.ok) {
-        window.location.replace('/ss.html');
+        window.location.replace('/ka.html');
       } else {
         const data = await res.json().catch(() => ({}));
         showError(data.detail || 'Invalid password.');

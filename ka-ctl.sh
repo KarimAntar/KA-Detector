@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# ss-ctl.sh — interactive control panel for the SS-whisper voicemail stack.
+# ka-ctl.sh — interactive control panel for the KA Detector voicemail stack.
 #
 # A numbered terminal menu to manage everything without remembering commands:
 #   - switch the whisper model (tiny / base.en / small.en / ...)
@@ -12,8 +12,8 @@
 #
 # Usage:
 #   cd ~/KA-whisper.cpp
-#   ./ss-ctl.sh                 # interactive menu
-#   WORKSPACE=/root/.ka/workspace ./ss-ctl.sh   # override workspace if needed
+#   ./ka-ctl.sh                 # interactive menu
+#   WORKSPACE=/root/.ka/workspace ./ka-ctl.sh   # override workspace if needed
 #
 # It auto-detects the workspace from the installed systemd unit when possible.
 #
@@ -428,7 +428,7 @@ action_check_updates() {
   if ! git -C "$REPO_DIR" fetch -q origin "$BRANCH" 2>/dev/null; then
     echo "${YLW}fetch failed (private repo may need a token).${R}"
     echo "Set the token into the remote once with:"
-    echo "  ${DIM}git -C $REPO_DIR remote set-url origin https://<user>:<token>@github.com/KarimAntar/SS-whisper.cpp.git${R}"
+    echo "  ${DIM}git -C $REPO_DIR remote set-url origin https://<user>:<token>@github.com/KarimAntar/KA-Detector.git${R}"
     return
   fi
   local local_sha remote_sha
@@ -596,7 +596,7 @@ do_update() {
     git -C "$REPO_DIR" pull --ff-only origin "$BRANCH" || { echo "${RED}pull failed (private repo? set GH_TOKEN, or bake the token into 'origin')${R}"; exit 1; }
   fi
   after="$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null)"
-  chmod +x "$REPO_DIR"/ss-ctl.sh "$REPO_DIR"/deploy.sh "$REPO_DIR"/setup.sh 2>/dev/null || true
+  chmod +x "$REPO_DIR"/ka-ctl.sh "$REPO_DIR"/deploy.sh "$REPO_DIR"/setup.sh 2>/dev/null || true
   if [[ "$before" == "$after" ]]; then
     echo "${GRN}Already up to date${R} ($after)"
   else

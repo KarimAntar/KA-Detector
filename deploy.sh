@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# deploy.sh — Pull the SS-whisper voicemail API + Caddy config from GitHub and
+# deploy.sh — Pull the KA Detector voicemail API + Caddy config from GitHub and
 # apply them on this (target) VPS, then restart the services.
 #
 # Run this ON THE OTHER VPS:
-#     curl -fsSL https://raw.githubusercontent.com/KarimAntar/SS-whisper.cpp/master/deploy.sh -o deploy.sh
+#     curl -fsSL https://raw.githubusercontent.com/KarimAntar/KA-Detector/master/deploy.sh -o deploy.sh
 #     chmod +x deploy.sh
 #     ./deploy.sh
 #
@@ -20,7 +20,7 @@ set -euo pipefail
 # ----------------------------------------------------------------------------
 # Configuration (override by exporting before running, e.g. WORKSPACE=/opt/ss)
 # ----------------------------------------------------------------------------
-REPO_URL="${REPO_URL:-https://github.com/KarimAntar/SS-whisper.cpp.git}"
+REPO_URL="${REPO_URL:-https://github.com/KarimAntar/KA-Detector.git}"
 BRANCH="${BRANCH:-master}"
 
 # The workspace path baked into the committed files (the source server). Any
@@ -45,7 +45,7 @@ SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
 # whisper model. The unit ships referencing ggml-tiny.bin (the source server's
 # model); set WHISPER_MODEL=tiny.en (etc.) to point the unit at a different one.
 SRC_WHISPER_MODEL="${SRC_WHISPER_MODEL:-tiny}"
-# Default model resolution: explicit env  >  saved choice (ss-ctl.sh switch)  >  tiny.
+# Default model resolution: explicit env  >  saved choice (ka-ctl.sh switch)  >  tiny.
 _SAVED_MODEL=""
 [[ -f /etc/ka-whisper/whisper-model ]] && _SAVED_MODEL="$(tr -d '[:space:]' </etc/ka-whisper/whisper-model 2>/dev/null || true)"
 WHISPER_MODEL="${WHISPER_MODEL:-${_SAVED_MODEL:-tiny}}"
@@ -77,7 +77,7 @@ CLONE_DIR="${CLONE_DIR:-$WORKSPACE/ka-deploy-repo}"
 SERVICES=(whisper-server.service voicemail-api.service)
 
 TS="$(date +%Y%m%d_%H%M%S)"
-BACKUP_DIR="${BACKUP_DIR:-$HOME/ss-deploy-backups/$TS}"
+BACKUP_DIR="${BACKUP_DIR:-$HOME/ka-deploy-backups/$TS}"
 
 # ----------------------------------------------------------------------------
 log()  { printf '\033[1;32m[deploy]\033[0m %s\n' "$*"; }
@@ -242,12 +242,17 @@ for cf in phrases.txt dnc.txt; do
   fi
 done
 
-# 2b) Control panel: make ss-ctl.sh executable + install the 'ka' shortcut -----
-if [[ -f "$SRC/ss-ctl.sh" ]]; then
-  chmod +x "$SRC/ss-ctl.sh" 2>/dev/null || true
-  $SUDO ln -sf "$SRC/ss-ctl.sh" /usr/local/bin/ka
-  log "Installed control panel shortcut: 'ka' -> $SRC/ss-ctl.sh"
+# 2b) Control panel: make ka-ctl.sh executable + install the 'ka' shortcut -----
+if [[ -f "$SRC/ka-ctl.sh" ]]; then
+  chmod +x "$SRC/ka-ctl.sh" 2>/dev/null || true
+  $SUDO ln -sf "$SRC/ka-ctl.sh" /usr/local/bin/ka
+  log "Installed control panel shortcut: 'ka' -> $SRC/ka-ctl.sh"
 fi
+
+# 2c) Remove legacy ss-* / old-name artifacts so old names don't linger --------
+log "Removing legacy ss-* artifacts (if any)"
+$SUDO rm -f /usr/local/bin/vm                                   # old command name
+$SUDO rm -f "$CADDY_ROOT/ss.html" "$CADDY_ROOT/ss-whisper-editor.html"  # old served pages
 
 # 3) Caddy: public files + Caddyfile ------------------------------------------
 log "Updating Caddy site root $CADDY_ROOT"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # setup.sh — FULL provisioning for a fresh VPS. Installs everything needed to run
-# the SS-whisper voicemail stack exactly like the source server, then hands off
+# the KA Detector voicemail stack exactly like the source server, then hands off
 # to deploy.sh to install the code/config/units and start the services.
 #
 # What it does:
@@ -115,7 +115,7 @@ $SUDO chown -R "$SERVICE_USER" "$API_DIR" "$WHISPER_DIR" 2>/dev/null || true
 
 # 6) Hand off to deploy.sh -----------------------------------------------------
 log "Running deploy.sh to install code, Caddy config, systemd units, control panel and start"
-chmod +x "$SCRIPT_DIR/deploy.sh" "$SCRIPT_DIR/ss-ctl.sh" 2>/dev/null || true
+chmod +x "$SCRIPT_DIR/deploy.sh" "$SCRIPT_DIR/ka-ctl.sh" 2>/dev/null || true
 PULL=0 \
 WORKSPACE="$WORKSPACE" \
 API_DIR="$API_DIR" \

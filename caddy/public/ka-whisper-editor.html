@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>SS-Whisper Phrase & DNC Editor</title>
+  <title>KA Detector Phrase & DNC Editor</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
     :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
@@ -40,7 +40,7 @@
 
     <div class="row"> 
       <div class="col card"> 
-        <div class="flex-between"><div><strong>Voicemail phrases</strong><div class="sub">/etc/ss-whisper/phrases.txt</div></div>
+        <div class="flex-between"><div><strong>Voicemail phrases</strong><div class="sub">/etc/ka-whisper/phrases.txt</div></div>
           <div class="controls"><button id="loadP" class="btn ghost">Reload</button><button id="saveP" class="btn">Save</button></div></div>
         <label>Editor (one phrase per line)</label>
         <textarea id="phrases">please leave a message
@@ -122,7 +122,7 @@ for further options
       </div>
 
       <div class="col card"> 
-        <div class="flex-between"><div><strong>DNC phrases</strong><div class="sub">/etc/ss-whisper/dnc.txt</div></div>
+        <div class="flex-between"><div><strong>DNC phrases</strong><div class="sub">/etc/ka-whisper/dnc.txt</div></div>
           <div class="controls"><button id="loadD" class="btn ghost">Reload</button><button id="saveD" class="btn">Save</button></div></div>
         <label>Editor (one phrase per line)</label>
         <textarea id="dnc">please remove me from the call list
@@ -250,7 +250,7 @@ function downloadLog(){
 ');
   const blob = new Blob([lines], {type: 'text/plain'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'ss-whisper-log.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  const a = document.createElement('a'); a.href = url; a.download = 'ka-whisper-log.txt'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   logInfo('Exported log');
 }
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>SS-Whisper</title>
+<title>KA Detector</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0iIzA3MTkzNCIvPjxyZWN0IHg9IjQiIHk9IjIwIiB3aWR0aD0iNSIgaGVpZ2h0PSI4IiByeD0iMiIgZmlsbD0iIzRjZDdmNiIgb3BhY2l0eT0iMC41Ii8+PHJlY3QgeD0iMTEiIHk9IjgiIHdpZHRoPSI1IiBoZWlnaHQ9IjIwIiByeD0iMiIgZmlsbD0iIzRjZDdmNiIvPjxyZWN0IHg9IjE4IiB5PSIxNCIgd2lkdGg9IjUiIGhlaWdodD0iMTQiIHJ4PSIyIiBmaWxsPSIjNGNkN2Y2IiBvcGFjaXR5PSIwLjgiLz48cmVjdCB4PSIyNSIgeT0iMTAiIHdpZHRoPSIzIiBoZWlnaHQ9IjE4IiByeD0iMS41IiBmaWxsPSIjNGNkN2Y2IiBvcGFjaXR5PSIwLjY1Ii8+PC9zdmc+Cg=="/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -98,7 +98,7 @@
         </div>
         <div class="leading-tight">
           <div class="font-headline font-bold text-base text-on-surface flex items-center gap-2">
-            SS-Whisper
+            KA Detector
             <span class="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-jetbrains border border-primary/20">live</span>
           </div>
           <div class="text-xs text-on-surface-variant">Phrase &amp; DNC Editor</div>
@@ -468,7 +468,7 @@ function exportJson(){
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
   const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), {href: url, download: 'ss-whisper-export.json'});
+  const a    = Object.assign(document.createElement('a'), {href: url, download: 'ka-whisper-export.json'});
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   logInfo('Exported JSON');
   toast('JSON exported', 'info');
@@ -481,7 +481,7 @@ function downloadLog(){
   const lines = Array.from(p.children).map(el => el.textContent).reverse().join('\n');
   const blob  = new Blob([lines], {type: 'text/plain'});
   const url   = URL.createObjectURL(blob);
-  const a     = Object.assign(document.createElement('a'), {href: url, download: 'ss-whisper-log.txt'});
+  const a     = Object.assign(document.createElement('a'), {href: url, download: 'ka-whisper-log.txt'});
   document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   logInfo('Downloaded log');
 }

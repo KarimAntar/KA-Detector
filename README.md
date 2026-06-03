@@ -1,286 +1,201 @@
-# KA Detector API — whisper.cpp + Caddy deployment
+# KA Detector API — whisper.cpp / faster-whisper + Caddy
 
-Backup and deployment bundle for the **voicemail detection API** (FastAPI +
-whisper.cpp) and the **Caddy** reverse proxy / static site that front it.
+Self-hosted, real-time **voicemail / DNC detection** API. It transcribes live call
+audio (e.g. from a ReadyMode browser tab over WebSocket) and flags voicemail
+greetings, do-not-call phrases, and dead air — fronted by **Caddy** (auto-HTTPS)
+with a small static site and an interactive **`ka`** control panel.
 
-> ⚠️ **Private repo.** It contains real service secrets in
-> `systemd/voicemail-api.service`. Keep this repository private.
+> ⚠️ **Private repo.** `systemd/voicemail-api.service` contains real service
+> secrets (API key, basic-auth, Resend key). Keep this repository private.
+
+---
 
 ## Layout
 
 ```
 caddy/
-  Caddyfile          # live /etc/caddy/Caddyfile
-  public/            # live /usr/share/caddy web assets (HTML, logos, icons)
+  Caddyfile                  # live /etc/caddy/Caddyfile (reverse proxy + static)
+  public/                    # served at /usr/share/caddy (ka.html, login, assets)
 systemd/
-  voicemail-api.service    # FastAPI service unit (whisper.cpp backend)
-  whisper-server.service   # whisper.cpp HTTP inference server unit
+  voicemail-api.service      # FastAPI/uvicorn unit (the API)
+  whisper-server.service     # whisper.cpp HTTP inference server unit
 voicemail_api/
-  server.py          # the API
-  client.py          # example client
-  run.sh             # launcher (activates .venv, runs uvicorn on :8808)
-  requirements.txt   # slim, pinned runtime deps (fastapi/uvicorn/httpx/...)
-  README.md          # API notes
+  server.py                  # the API (transcription + detection + WS + admin + auth)
+  run.sh                     # launcher (activates .venv, runs uvicorn :8808)
+  requirements.txt           # slim pinned runtime deps
 config/ka-whisper/
-  phrases.txt        # voicemail-detection phrases (seeded to /etc/ka-whisper)
-  dnc.txt            # do-not-call phrases
-setup.sh             # FULL provision of a fresh VPS (packages, whisper.cpp, model, venv) then deploy
-deploy.sh            # update/sync an EXISTING install (code, config, units, restart)
+  phrases.txt                # voicemail phrases  (seeded to /etc/ka-whisper)
+  dnc.txt                    # do-not-call phrases
+setup.sh                     # ONE-SHOT fresh-VPS install (everything, incl. ka shortcut)
+deploy.sh                    # update an existing install (code/config/units/restart)
+ka-ctl.sh                    # the 'ka' control panel (menu)
+ka-migrate.sh                # migrate an OLD install to the new ka-* paths
 ```
 
-What is intentionally **not** in here (built/fetched by `setup.sh` instead): the
-Python `.venv`, the whisper.cpp build + model (multi-GB), `voicemail_api/work/`
-call recordings, and the large `voicemail_backup_*.tar.gz` archives.
+Not committed (built/fetched on the box): the Python `.venv`, the whisper.cpp
+build + models, `voicemail_api/work/`, and backups.
 
-## Fresh VPS — one-shot install (`setup.sh`)
+## Paths & names
 
-`setup.sh` provisions a brand-new box to match the source server, then calls
-`deploy.sh`. It installs apt packages + Caddy, clones & builds **whisper.cpp**
-(CPU/Release), downloads the **`tiny`** model, creates the venv, installs
-requirements, seeds `/etc/ka-whisper`, installs the systemd units, and starts
-everything with a health check.
+| Thing            | Location                              |
+|------------------|---------------------------------------|
+| Workspace        | `~/.ka/workspace` (whisper.cpp + venv + API code) |
+| Config + state   | `/etc/ka-whisper/` (phrases, dnc, engine, model, workers) |
+| Repo checkout    | `~/KA-whisper.cpp`                     |
+| Control panel    | `ka` (symlink → `ka-ctl.sh`)          |
+| API              | `:8808` · whisper-server `127.0.0.1:9305` |
+
+---
+
+## Fresh VPS — one command does everything
 
 ```bash
-# clone the (private) repo, then:
+git clone https://<TOKEN>@github.com/KarimAntar/KA-Detector.git ~/KA-whisper.cpp
 cd ~/KA-whisper.cpp
-WORKSPACE=/home/$USER/.ka/workspace ./setup.sh
+WORKSPACE=$HOME/.ka/workspace ./setup.sh        # on a 1GB box add: JOBS=1
 ```
 
-Useful overrides:
+`setup.sh` installs apt packages + Caddy, builds **whisper.cpp**, downloads the
+model, creates the venv + installs requirements, seeds `/etc/ka-whisper`, installs
+the systemd units, **installs the `ka` shortcut**, then starts + health-checks
+everything. No manual steps after it finishes — just run `ka`.
 
-| Var              | Default                         | Purpose                                  |
-|------------------|---------------------------------|------------------------------------------|
-| `WORKSPACE`      | `/home/ubuntu/.ka/workspace` | parent of `voicemail_api/` + `whisper.cpp/` |
-| `WHISPER_MODEL`  | `tiny`                          | model to fetch + run (`tiny.en`, `base`, …) |
-| `WHISPER_COMMIT` | *(latest)*                      | pin whisper.cpp to an exact commit       |
-| `SERVICE_USER`   | the user running it             | Unix user the services run as            |
-| `INSTALL_CADDY`  | `1`                             | set `0` to skip installing Caddy         |
-| `JOBS`           | `nproc`                         | parallel build jobs                      |
+Useful overrides: `WHISPER_MODEL` (default `tiny`), `SERVICE_USER`, `INSTALL_CADDY=0`,
+`JOBS`, `WHISPER_COMMIT`.
 
-Everything is idempotent — re-running skips already-completed steps (won't
-rebuild whisper.cpp, re-download the model, or recreate an existing venv).
+---
 
-## Service map (from Caddyfile)
+## The `ka` control panel
 
-| Host                | Backend                  |
-|---------------------|--------------------------|
-| `vm.karims.dev`     | static `/usr/share/caddy` + `/auth /admin /book-demo` → :8808 |
-| `ss.karims.dev`     | voicemail API → 127.0.0.1:8808 |
-| `agent.karims.dev`  | → 127.0.0.1:18789 |
-| `9router.karims.dev`| → 127.0.0.1:20128 |
-| `n8n.karims.dev`    | → 127.0.0.1:5678 |
+Run `ka` from anywhere:
 
-The API listens on `:8808`; whisper.cpp inference server on `127.0.0.1:9305`.
+```
+╔══════════════════════════════════════════════╗
+║        KA Detector  ·  control panel          ║
+╚══════════════════════════════════════════════╝
+   1) Status + health check
+   2) Switch model            (engine-aware: ggml or faster-whisper list)
+   3) Switch transcription engine   (whisper.cpp / faster-whisper)
+   4) Set uvicorn workers     (recommends from cores/RAM/engine)
+   5) Restart services
+   6) Check repo for updates  (pull + redeploy)
+   7) Redeploy from repo
+   8) Update / reload Caddy
+   9) View logs
+  10) Edit phrases.txt / dnc.txt
+  11) Reinstall services
+  12) Uninstall services
+   0) Quit
+```
 
-## Update an existing install (`deploy.sh`)
+- `ka` — open the menu
+- `ka -update` — `git pull` the latest repo + relaunch
+- `ka -h` — help
 
-Use this once the box is already provisioned (by `setup.sh` or by hand) and you
-just want to pull the latest code/config and restart.
+Choices for model / engine / workers persist in `/etc/ka-whisper/` so they
+survive restarts and redeploys.
+
+---
+
+## Transcription engines
+
+Selectable behind the unchanged `/ws/transcribe` WebSocket (the ReadyMode client
+never changes). Switch via `ka` → option 3.
+
+| Engine | What it is | When |
+|---|---|---|
+| **whisper.cpp** (default) | lightweight C++; model lives in `whisper-server` | low overhead, simple |
+| **faster-whisper** | CTranslate2 int8, in-process resident model + Silero VAD (WhisperLive's engine) | **lower latency** for live calls |
+
+faster-whisper loads **one model copy per uvicorn worker**, so size workers to RAM
+(option 4 recommends a value). It auto-falls back to whisper.cpp on any error.
+Check the active engine: `curl -s 127.0.0.1:8808/health`.
+
+**Models** — whisper.cpp (ggml): `tiny`, `tiny.en`, `base.en`, `small.en`, …
+faster-whisper: `tiny.en`, `base.en`, `small.en`, `distil-small.en`, `distil-large-v3`.
+
+---
+
+## Update an existing install
+
+```bash
+ka -update          # pull repo + relaunch the panel
+ka                  # then option 7 (Redeploy) to apply API/Caddy/unit changes
+```
+
+or directly:
 
 ```bash
 cd ~/KA-whisper.cpp
-WORKSPACE=/home/$USER/.ka/workspace ./deploy.sh
+git pull origin master
+WORKSPACE=$HOME/.ka/workspace ./deploy.sh
 ```
 
-`deploy.sh` will:
+`deploy.sh` backs up everything it overwrites to `~/ka-deploy-backups/<ts>/`,
+rewrites the units for this host (workspace path, `User=`, model, engine, workers),
+validates the Caddyfile before reload, and health-checks the API + WebSocket. A
+clean run ends with `✅`.
 
-1. Hard-reset this repo to the latest `master` (skip with `PULL=0`).
-2. Replace the API **code** in `voicemail_api/` — preserving the existing
-   `.venv`, `work/`, and `backups/`.
-3. Create a `.venv` + `pip install -r requirements.txt` **only if** none exists.
-4. Seed `/etc/ka-whisper/{phrases,dnc}.txt` if missing (existing files kept).
-5. Sync `caddy/public/` → `/usr/share/caddy` and the `Caddyfile` → `/etc/caddy`
-   (validating the Caddyfile before any reload; falls back to `cp` if no rsync).
-6. Install the systemd units (rewriting workspace path, `User=`, and the model
-   filename for this host) and `daemon-reload`.
-7. Reload Caddy, restart `whisper-server` + `voicemail-api`, then health-check
-   `:8808/admin/phrases` (expects 200/401).
+> A shell script can't upgrade itself mid-run — if you changed `deploy.sh`/`ka-ctl.sh`
+> itself, run the update **twice** (first run swaps the file, second run uses it).
 
-**Everything it overwrites is backed up first** to
-`~/ss-deploy-backups/<timestamp>/`, so the run is reversible.
+---
 
-### Host portability
+## Migrating an OLD install (ss-* → ka-*)
 
-The committed units carry the source server's paths/user/model; `deploy.sh`
-rewrites them on install. Override as needed:
+For a box still on the old layout (`/etc/ss-whisper`, `~/.openclaw/workspace`,
+`~/SS-whisper.cpp`):
 
 ```bash
-WORKSPACE=/opt/ss CADDY_ROOT=/var/www/ss SERVICE_USER=app WHISPER_MODEL=tiny.en ./deploy.sh
+cd ~/SS-whisper.cpp
+git pull origin master
+./ka-migrate.sh
 ```
 
-`SKIP_SYSTEMD=1` leaves existing units untouched.
+It stops the services, moves the config + workspace (keeping the whisper.cpp build
+and models — no rebuild), **recreates the venv** at the new path (venvs can't be
+moved), redeploys to the new paths, reinstalls faster-whisper if it was active, and
+re-points the `ka` shortcut. Idempotent and backed up.
 
-### whisper.cpp
+---
 
-`deploy.sh` alone does **not** build whisper.cpp — it expects the binary at
-`$WORKSPACE/whisper.cpp/build/bin/whisper-server` with the model under
-`whisper.cpp/models/` (run `setup.sh` to build/fetch them) and warns if missing.
+## Service map (Caddyfile)
 
-## What `deploy.sh` verifies
+| Host                 | Backend |
+|----------------------|---------|
+| `vm.karims.dev`      | static `/usr/share/caddy` + `/auth /admin /book-demo` → :8808 |
+| `ss.karims.dev`      | API → 127.0.0.1:8808 (incl. `/ws/transcribe`) |
+| `agent.karims.dev`   | → 127.0.0.1:18789 |
+| `9router.karims.dev` | → 127.0.0.1:20128 |
+| `n8n.karims.dev`     | → 127.0.0.1:5678 |
 
-The script doesn't just restart things and hope — at the end it:
+HTML pages are served with `no-cache` headers so a deploy is never masked by a
+stale browser cache.
 
-1. Clears any prior systemd failure counter (`reset-failed`) before restarting,
-   so a service that previously crash-looped isn't blocked by `StartLimit`.
-2. Restarts **whisper-server first, then voicemail-api** (the API depends on it),
-   waiting for each to reach `active` (with one automatic `daemon-reload` + retry).
-3. Polls `127.0.0.1:9305` (whisper-server) until it responds.
-4. Polls `:8808/admin/phrases` until it returns **200/401** (auth-required = healthy).
-5. On any failure it **prints the failing unit's journal tail automatically** and
-   exits non-zero with `❌`. A clean run ends with `✅ Deploy complete`.
-
-So if the final line is `✅`, Caddy + whisper-server + the API are all confirmed up.
+---
 
 ## Troubleshooting
 
-Quick triage:
-
 ```bash
 systemctl is-active caddy whisper-server.service voicemail-api.service
-ss -ltnp | grep -E '8808|9305' || echo "API/whisper not listening"
+curl -s 127.0.0.1:8808/health                       # engine + fw_loaded
+curl -s -o /dev/null -w '%{http_code}\n' 127.0.0.1:8808/admin/phrases   # 200/401 healthy
 sudo journalctl -u voicemail-api.service -n 40 --no-pager
-sudo journalctl -u whisper-server.service -n 40 --no-pager
-# Does the API answer locally? (200/401 = healthy, 000 = not running, 502 = down behind Caddy)
-curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: vm.karims.dev' http://127.0.0.1:8808/admin/phrases
 ```
 
-### `status=217/USER` / "Failed at step USER ... No such process"
-The unit's `User=` is a user that doesn't exist on this box (the committed units
-ship `User=ubuntu`). `deploy.sh` rewrites this to the deploying user — but if you
-see it, the rewrite was skipped or the unit was hand-edited. Fix:
-```bash
-sudo sed -i 's/^User=.*/User='"$USER"'/' \
-  /etc/systemd/system/voicemail-api.service /etc/systemd/system/whisper-server.service
-sudo systemctl daemon-reload
-sudo systemctl reset-failed voicemail-api.service whisper-server.service
-sudo systemctl restart whisper-server.service voicemail-api.service
-```
-Or just re-run `deploy.sh` (it now sets `User=` correctly and `reset-failed`s first).
+- **`status=217/USER`** — unit `User=` doesn't exist here. `deploy.sh` rewrites it;
+  re-run deploy, or `sudo sed -i 's/^User=.*/User='"$USER"'/' /etc/systemd/system/*.service`.
+- **API shows HTTP 000 right after restart** — uvicorn binds a second after systemd
+  reports `active`; the panel's health check polls ~10s. Re-check.
+- **`/admin/*` returns 502 behind Caddy** — the API on :8808 is down; check its journal.
+- **WebSocket won't connect** — ensure `uvicorn[standard]` (provides `websockets`) is
+  installed; `deploy.sh` re-syncs requirements every run.
+- **Page/data looks stale** — hard-reload once; HTML now ships `no-cache`.
+- **faster-whisper not active** — first start downloads the model (slow once); confirm
+  with `/health` `fw_loaded:true`; missing dep → it falls back to whisper.cpp.
 
-### The first run after a script change "didn't apply" / re-broke
-A shell script **can't upgrade itself mid-run**: the first `deploy.sh` after a new
-commit executes the *old* on-disk copy while resetting the repo to the new one.
-**Just run `deploy.sh` once more** — the second run uses the updated script. (This
-is why a fix sometimes only "takes" on the second invocation.)
+## Security
 
-### `ss.html` shows `502` on `/admin/phrases` and `/admin/dnc`
-Caddy is up but the API on `127.0.0.1:8808` is down. Check
-`systemctl is-active voicemail-api.service` and its journal (above). The page
-itself is fine — it's the backend.
-
-### `ss.html` says "wrong password"
-Login checks the submitted password against `BASIC_AUTH_PASS` in the **running
-unit** (username is ignored). See the live value:
-```bash
-sudo systemctl show voicemail-api.service -p Environment | tr ' ' '\n' | grep BASIC_AUTH_PASS
-```
-Log in with that. Note: because the secret is baked into the unit in the repo,
-**every deploy resets the password to the repo value.** To keep a custom password,
-use `SKIP_SYSTEMD=1` on deploys, or move secrets to an `EnvironmentFile` (below).
-
-### Browser shows Caddy's "Your web server is working / Point your domain's
-### A/AAAA records at this machine"
-That's Caddy's **built-in welcome page**, served when the request matches no site
-block — i.e. you hit the box by **IP** or a hostname that isn't in the Caddyfile
-(common over HTTPS). Reach it via a configured host:
-```bash
-# confirm the real landing page is on disk + served for the right Host:
-grep -c "Voicemail Detector" /usr/share/caddy/index.html
-curl -s -H 'Host: vm.karims.dev' http://127.0.0.1/ | grep -o "Voicemail Detector" | head -1
-```
-If those match, the landing page is live — point `vm.karims.dev`'s DNS at this box.
-
-### WebSocket / WSS (`/ws/transcribe`) not connecting
-The streaming endpoint is `wss://<host>/ws/transcribe?api_key=<API_KEY>`. Two
-distinct causes:
-
-**a) The API itself doesn't upgrade (handshake hangs / no `101`).** uvicorn needs a
-WebSocket library; if the venv lacks `websockets`, the upgrade silently stalls.
-Test direct to the API (bypassing Caddy):
-```bash
-KEY=$(sudo systemctl show voicemail-api.service -p Environment | tr ' ' '\n' | sed -n 's/.*API_KEY=//p' | head -1)
-curl -v -N --max-time 4 -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
-  -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
-  "http://127.0.0.1:8808/ws/transcribe?api_key=$KEY" 2>&1 | grep -i 'HTTP\|101'
-```
-No `101` (hang / 0 bytes) → install deps and restart:
-```bash
-API_DIR=$WORKSPACE/voicemail_api
-"$API_DIR/.venv/bin/pip" install -r "$API_DIR/requirements.txt"   # pulls uvicorn[standard] + websockets
-sudo systemctl restart voicemail-api.service
-```
-`deploy.sh` now re-syncs requirements every run and includes a WebSocket check, so
-this is caught automatically going forward.
-
-**b) Caddy doesn't proxy the WS path on that host.** `ss.karims.dev` proxies
-everything to `:8808` (WS works). `vm.karims.dev` only proxies `/auth /admin
-/book-demo` — **not `/ws/*`** — so `wss://vm.karims.dev/ws/transcribe` hits the
-static file server and never upgrades. Connect via `ss.karims.dev`, or add a
-`reverse_proxy /ws/* 127.0.0.1:8808` block to the `vm.karims.dev` site. Caddy
-upgrades WebSockets automatically on any `reverse_proxy` — no extra directive
-needed. (Also confirm DNS for the host points at this box and `:443` is reachable,
-or the `wss://` TLS handshake will fail / hit a different server.)
-
-### `auth: 000` / `curl` can't connect to `:8808`
-The API isn't listening — it's crash-looping or stopped. `is-active` will say
-`activating`/`failed`; read the journal for the real error (USER, missing module,
-missing model).
-
-### whisper-server won't start / API returns transcription errors
-Usually a missing build or model:
-```bash
-ls -la "$WORKSPACE/whisper.cpp/build/bin/whisper-server"     # binary present + executable?
-ls -la "$WORKSPACE/whisper.cpp/models/"*.bin                 # model present?
-grep -- '-m ' /etc/systemd/system/whisper-server.service     # which model the unit expects
-```
-If the binary/model are missing, run `setup.sh` (builds whisper.cpp + downloads
-the model). If the unit points at a model you don't have, redeploy with the right
-`WHISPER_MODEL=...`.
-
-### `sudo: rsync: command not found`
-Harmless — `deploy.sh` falls back to `cp`. Install it for faster syncs if you like:
-`sudo apt-get install -y rsync`.
-
-### Caddyfile change won't load
-`deploy.sh` validates before reloading and **keeps the old Caddyfile if invalid**
-(you'll see `Caddyfile validation FAILED`). Validate manually:
-```bash
-sudo caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-```
-The `Unnecessary header_up X-Forwarded-Proto` lines are warnings, not errors.
-
-### Private-repo clone/fetch fails (`Authentication failed`)
-The repo is private; `deploy.sh`'s internal `git fetch` needs credentials. Either
-pass a token in `REPO_URL="https://<TOKEN>@github.com/KarimAntar/SS-whisper.cpp.git"`,
-or run `git config --global credential.helper store` + one manual `git pull` so the
-token is cached and future runs need no `REPO_URL`.
-
-## Rollback
-
-Every run backs up what it replaced to `~/ss-deploy-backups/<timestamp>/`
-(mirroring absolute paths). To restore, e.g. the API code + units:
-```bash
-B=~/ss-deploy-backups/<timestamp>
-sudo cp -a "$B/etc/systemd/system/." /etc/systemd/system/
-cp -a  "$B$WORKSPACE/voicemail_api/." "$WORKSPACE/voicemail_api/"
-sudo cp -a "$B/etc/caddy/Caddyfile" /etc/caddy/Caddyfile
-sudo systemctl daemon-reload
-sudo systemctl restart caddy whisper-server.service voicemail-api.service
-```
-
-## Optional: keep secrets out of the repo (`EnvironmentFile`)
-
-To stop deploys from resetting your password/keys, move them to a host-only file:
-
-1. Create `/etc/voicemail-api.env` (chmod 600) with the `KEY=value` lines.
-2. In `voicemail-api.service`, replace the `Environment=...` secret lines with
-   `EnvironmentFile=/etc/voicemail-api.env`.
-3. Commit only a `voicemail-api.env.example` with placeholders.
-
-Deploys then never touch the real secrets. (Ask and this can be wired in.)
-
-## Security note
-
-The old credentials previously committed here have been removed from history.
-Rotate any secret that was ever public (API key, basic-auth password, Resend
-API key) if you have not already.
+Secrets live in `systemd/voicemail-api.service` (kept private). The API accepts an
+`X-API-Key`/Bearer key or basic-auth; the static admin uses a signed session cookie
+(`ka_token`). Rotate the API key + Resend key if they ever leak.
