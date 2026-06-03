@@ -45,7 +45,10 @@ SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
 # whisper model. The unit ships referencing ggml-tiny.bin (the source server's
 # model); set WHISPER_MODEL=tiny.en (etc.) to point the unit at a different one.
 SRC_WHISPER_MODEL="${SRC_WHISPER_MODEL:-tiny}"
-WHISPER_MODEL="${WHISPER_MODEL:-tiny}"
+# Default model resolution: explicit env  >  saved choice (ss-ctl.sh switch)  >  tiny.
+_SAVED_MODEL=""
+[[ -f /etc/ss-whisper/whisper-model ]] && _SAVED_MODEL="$(tr -d '[:space:]' </etc/ss-whisper/whisper-model 2>/dev/null || true)"
+WHISPER_MODEL="${WHISPER_MODEL:-${_SAVED_MODEL:-tiny}}"
 
 # Where the ss-whisper config (phrases.txt / dnc.txt) lives — server.py default.
 SS_CONFIG_DIR="${SS_CONFIG_DIR:-/etc/ss-whisper}"
