@@ -58,6 +58,18 @@ detect_paths() {
     MODELS_DIR="$WHISPER_DIR/models"
   fi
   DL_SCRIPT="$WHISPER_DIR/models/download-ggml-model.sh"
+  API_DIR="${API_DIR:-$WORKSPACE/voicemail_api}"
+  VENV_PIP="$API_DIR/.venv/bin/pip"
+}
+
+current_engine() {
+  if [[ -f "$SS_CONFIG_DIR/engine" ]]; then
+    tr -d '[:space:]' <"$SS_CONFIG_DIR/engine"
+  elif [[ -f "$SYSTEMD_DIR/$API_SVC" ]]; then
+    grep -oE '^Environment=TRANSCRIBE_ENGINE=.*' "$SYSTEMD_DIR/$API_SVC" | head -1 | cut -d= -f3
+  else
+    echo "whispercpp"
+  fi
 }
 
 current_model() {
@@ -187,13 +199,89 @@ action_switch_model() {
   echo "${GRN}Switched to ${model}.${R}"
 }
 
+FW_MODELS=(tiny.en base.en small.en distil-small.en distil-large-v3)
+FW_DESC=(
+  "fastest, English (~75MB) — like current tiny.en"
+  "fast, better accuracy, English (~145MB)"
+  "good accuracy, English, slower (~480MB)"
+  "distilled — near-base accuracy, very fast (English)"
+  "distilled large — high accuracy, heavier on CPU (English)"
+)
+
+set_unit_env() {  # set_unit_env <KEY> <VALUE>  — set/replace an Environment= line in the API unit
+  local key="$1" val="$2" unit="$SYSTEMD_DIR/$API_SVC"
+  if grep -qE "^Environment=${key}=" "$unit"; then
+    $SUDO sed -i -E "s#^Environment=${key}=.*#Environment=${key}=${val}#" "$unit"
+  else
+    # insert after the WHISPER_SERVER_URL line (or append before [Install])
+    $SUDO sed -i "/^Environment=WHISPER_SERVER_URL=/a Environment=${key}=${val}" "$unit"
+  fi
+}
+
+action_switch_engine() {
+  clear
+  echo "${B}Switch transcription engine${R}   ${DIM}(current: ${CYN}$(current_engine)${DIM})${R}"
+  echo
+  echo "   ${B}1${R}) whisper.cpp     ${DIM}lightweight C++ (current default); batch-per-chunk${R}"
+  echo "   ${B}2${R}) faster-whisper  ${DIM}WhisperLive's CTranslate2 engine; resident, int8, lower latency${R}"
+  echo "   ${B}0${R}) cancel"
+  echo
+  local c; read -rp "Pick engine: " c
+  case "$c" in
+    1)
+      set_unit_env TRANSCRIBE_ENGINE whispercpp
+      echo "whispercpp" | $SUDO tee "$SS_CONFIG_DIR/engine" >/dev/null
+      $SUDO systemctl daemon-reload
+      restart_one "$API_SVC"
+      echo; health_check
+      echo "${GRN}Engine set to whisper.cpp.${R}"
+      ;;
+    2)
+      # pick a faster-whisper model
+      echo
+      echo "${B}faster-whisper model:${R}"
+      local i
+      for i in "${!FW_MODELS[@]}"; do
+        printf "  ${B}%d${R}) %-18s ${DIM}%s${R}\n" "$((i+1))" "${FW_MODELS[$i]}" "${FW_DESC[$i]}"
+      done
+      local m; read -rp "Pick model number [1]: " m; m="${m:-1}"
+      [[ "$m" =~ ^[0-9]+$ ]] || { echo "${RED}invalid${R}"; return; }
+      local idx=$((m-1)); (( idx>=0 && idx<${#FW_MODELS[@]} )) || { echo "${RED}out of range${R}"; return; }
+      local fwm="${FW_MODELS[$idx]}"
+
+      # ensure faster-whisper is installed in the API venv
+      if [[ ! -x "$VENV_PIP" ]]; then echo "${RED}venv pip not found at $VENV_PIP${R}"; return; fi
+      if ! "$API_DIR/.venv/bin/python" -c "import faster_whisper" 2>/dev/null; then
+        echo "${YLW}Installing faster-whisper into the venv (one-time, downloads CTranslate2)...${R}"
+        "$VENV_PIP" install -q faster-whisper || { echo "${RED}pip install failed${R}"; return; }
+      else
+        echo "${GRN}faster-whisper already installed.${R}"
+      fi
+
+      set_unit_env TRANSCRIBE_ENGINE fasterwhisper
+      set_unit_env FW_MODEL "$fwm"
+      echo "fasterwhisper" | $SUDO tee "$SS_CONFIG_DIR/engine"   >/dev/null
+      echo "$fwm"          | $SUDO tee "$SS_CONFIG_DIR/fw-model" >/dev/null
+
+      $SUDO systemctl daemon-reload
+      echo "${DIM}Restarting API — first start downloads the ${fwm} model, may take a moment...${R}"
+      restart_one "$API_SVC"
+      echo; health_check
+      echo "${GRN}Engine set to faster-whisper (${fwm}).${R}"
+      echo "${DIM}Tip: check  curl -s 127.0.0.1:$API_PORT/health  — it shows engine + fw_loaded.${R}"
+      ;;
+    0) return ;;
+    *) echo "${RED}invalid${R}" ;;
+  esac
+}
+
 action_status() {
   clear
   echo "${B}Service status${R}"
   printf "  %-24s %s\n" "$CADDY_SVC"   "$(state_colored "$CADDY_SVC")"
   printf "  %-24s %s\n" "$WHISPER_SVC" "$(state_colored "$WHISPER_SVC")"
   printf "  %-24s %s\n" "$API_SVC"     "$(state_colored "$API_SVC")"
-  echo "  ${DIM}model: ${R}${CYN}$(current_model)${R}   ${DIM}workspace: ${R}$WORKSPACE"
+  echo "  ${DIM}model: ${R}${CYN}$(current_model)${R}   ${DIM}engine: ${R}${CYN}$(current_engine)${R}   ${DIM}workspace: ${R}$WORKSPACE"
   echo
   health_check
 }
@@ -338,34 +426,36 @@ main_menu() {
     echo "${MAG}${B}╔══════════════════════════════════════════════╗${R}"
     echo "${MAG}${B}║        SS-whisper  ·  control panel           ║${R}"
     echo "${MAG}${B}╚══════════════════════════════════════════════╝${R}"
-    printf "  caddy:%s  whisper:%s  api:%s   ${DIM}model:${R}${CYN}%s${R}\n" \
-      "$(state_colored "$CADDY_SVC")" "$(state_colored "$WHISPER_SVC")" "$(state_colored "$API_SVC")" "$(current_model)"
+    printf "  caddy:%s  whisper:%s  api:%s   ${DIM}model:${R}${CYN}%s${R} ${DIM}engine:${R}${CYN}%s${R}\n" \
+      "$(state_colored "$CADDY_SVC")" "$(state_colored "$WHISPER_SVC")" "$(state_colored "$API_SVC")" "$(current_model)" "$(current_engine)"
     echo "  ${DIM}repo:${R} $REPO_DIR  ${DIM}ws:${R} $WORKSPACE"
     echo
     echo "   ${B}1${R}) Status + health check"
     echo "   ${B}2${R}) Switch whisper model"
-    echo "   ${B}3${R}) Restart services"
-    echo "   ${B}4${R}) Check repo for updates  (pull + redeploy)"
-    echo "   ${B}5${R}) Redeploy from repo"
-    echo "   ${B}6${R}) Update / reload Caddy"
-    echo "   ${B}7${R}) View logs"
-    echo "   ${B}8${R}) Edit phrases.txt / dnc.txt"
-    echo "   ${B}9${R}) Reinstall services"
-    echo "  ${B}10${R}) ${RED}Uninstall services${R}"
+    echo "   ${B}3${R}) Switch transcription engine  ${DIM}(whisper.cpp / faster-whisper)${R}"
+    echo "   ${B}4${R}) Restart services"
+    echo "   ${B}5${R}) Check repo for updates  (pull + redeploy)"
+    echo "   ${B}6${R}) Redeploy from repo"
+    echo "   ${B}7${R}) Update / reload Caddy"
+    echo "   ${B}8${R}) View logs"
+    echo "   ${B}9${R}) Edit phrases.txt / dnc.txt"
+    echo "  ${B}10${R}) Reinstall services"
+    echo "  ${B}11${R}) ${RED}Uninstall services${R}"
     echo "   ${B}0${R}) Quit"
     echo
     local c; read -rp "${B}Select:${R} " c
     case "$c" in
       1) action_status ;;
       2) action_switch_model ;;
-      3) action_restart ;;
-      4) action_check_updates ;;
-      5) action_redeploy ;;
-      6) action_update_caddy ;;
-      7) action_logs ;;
-      8) action_edit_config ;;
-      9) action_reinstall ;;
-      10) action_uninstall ;;
+      3) action_switch_engine ;;
+      4) action_restart ;;
+      5) action_check_updates ;;
+      6) action_redeploy ;;
+      7) action_update_caddy ;;
+      8) action_logs ;;
+      9) action_edit_config ;;
+      10) action_reinstall ;;
+      11) action_uninstall ;;
       0|q|Q) echo "bye"; exit 0 ;;
       *) echo "${RED}invalid choice${R}"; sleep 1; continue ;;
     esac

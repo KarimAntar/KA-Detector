@@ -30,6 +30,20 @@ DEFAULT_MODEL = Path(os.environ.get("WHISPER_MODEL_PATH", str(DEFAULT_WHISPER_CP
 WHISPER_SERVER_URL = os.environ.get("WHISPER_SERVER_URL", "http://127.0.0.1:9305")
 WHISPER_SERVER_TIMEOUT = float(os.environ.get("WHISPER_SERVER_TIMEOUT", "30"))
 
+# ── Transcription engine selection ───────────────────────────────────────────
+# whispercpp   -> POST chunks to whisper.cpp whisper-server (default, current)
+# fasterwhisper-> in-process faster-whisper / CTranslate2 (WhisperLive's engine);
+#                 model stays resident, int8 on CPU => lower latency per chunk.
+TRANSCRIBE_ENGINE = os.environ.get("TRANSCRIBE_ENGINE", "whispercpp").lower()
+FW_MODEL    = os.environ.get("FW_MODEL", "tiny.en")          # tiny.en | base.en | small.en | distil-small.en | ...
+FW_COMPUTE  = os.environ.get("FW_COMPUTE", "int8")           # int8 | int8_float16 | float32
+FW_BEAM     = int(os.environ.get("FW_BEAM", "1"))            # 1 = greedy (fastest)
+FW_THREADS  = int(os.environ.get("FW_THREADS", "0"))         # 0 = CTranslate2 default
+FW_VAD      = os.environ.get("FW_VAD", "true").lower() in ("1", "true", "yes")
+
+_fw_model = None
+_fw_model_lock = None  # set in module init below (threading imported later)
+
 DEFAULT_PHRASES = [
     "please leave a message",
     "leave a message",
@@ -162,6 +176,12 @@ _http_client: Optional[httpx.AsyncClient] = None
 async def lifespan(app: FastAPI):
     global _http_client
     _http_client = httpx.AsyncClient(timeout=WHISPER_SERVER_TIMEOUT)
+    # Pre-load the faster-whisper model so the first live chunk isn't slow.
+    if TRANSCRIBE_ENGINE == "fasterwhisper":
+        try:
+            await asyncio.to_thread(_get_fw_model)
+        except Exception as exc:
+            print(f"[warn] faster-whisper preload failed ({exc}); will fall back to whisper.cpp")
     yield
     await _http_client.aclose()
     _http_client = None
@@ -417,13 +437,63 @@ async def _run_transcription_cli(
     return data
 
 
+# ── faster-whisper (CTranslate2) engine — WhisperLive's backend ───────────────
+_fw_model_lock = threading.Lock()
+
+
+def _get_fw_model():
+    """Lazily load and cache the faster-whisper model (CPU, int8). Stays resident."""
+    global _fw_model
+    if _fw_model is None:
+        with _fw_model_lock:
+            if _fw_model is None:
+                from faster_whisper import WhisperModel  # imported lazily so the
+                # whisper.cpp default works even when faster-whisper isn't installed
+                kwargs = {"device": "cpu", "compute_type": FW_COMPUTE}
+                if FW_THREADS > 0:
+                    kwargs["cpu_threads"] = FW_THREADS
+                _fw_model = WhisperModel(FW_MODEL, **kwargs)
+    return _fw_model
+
+
+def _fw_transcribe_sync(audio_path: str, language: str) -> dict:
+    """Blocking faster-whisper transcription; returns the normalized CLI-format dict."""
+    model = _get_fw_model()
+    lang = None if language in ("auto", "", None) else language
+    # .en models only support English; force it to avoid CTranslate2 errors
+    if FW_MODEL.endswith(".en"):
+        lang = "en"
+    segments, info = model.transcribe(
+        audio_path,
+        language=lang,
+        beam_size=FW_BEAM,
+        vad_filter=FW_VAD,
+        condition_on_previous_text=False,
+    )
+    transcription = [{"text": s.text} for s in segments]
+    return {
+        "result": {"language": getattr(info, "language", language)},
+        "transcription": transcription,
+    }
+
+
+async def _run_transcription_fasterwhisper(audio_path: Path, language: str = "en") -> dict:
+    """Run faster-whisper off the event loop so it doesn't block other requests."""
+    return await asyncio.to_thread(_fw_transcribe_sync, str(audio_path), language)
+
+
 async def _run_transcription(
     audio_path: Path,
     language: str = "en",
     duration_ms: Optional[int] = None,
     session_id: Optional[str] = None,
 ) -> dict:
-    """Try whisper-server (model stays in RAM), fall back to CLI subprocess."""
+    """Dispatch to the selected engine; fall back to whisper.cpp server then CLI."""
+    if TRANSCRIBE_ENGINE == "fasterwhisper":
+        try:
+            return await _run_transcription_fasterwhisper(audio_path, language)
+        except Exception:
+            pass  # fall through to whisper.cpp so a missing dep / bad model never hard-fails
     if _http_client is not None:
         try:
             return await _run_transcription_server(audio_path, language)
@@ -464,7 +534,12 @@ def _detect_dnc(text: str) -> List[str]:
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    info = {"status": "ok", "engine": TRANSCRIBE_ENGINE}
+    if TRANSCRIBE_ENGINE == "fasterwhisper":
+        info["fw_model"] = FW_MODEL
+        info["fw_compute"] = FW_COMPUTE
+        info["fw_loaded"] = _fw_model is not None
+    return info
 
 
 @app.post("/transcribe")

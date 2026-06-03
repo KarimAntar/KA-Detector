@@ -50,6 +50,14 @@ _SAVED_MODEL=""
 [[ -f /etc/ss-whisper/whisper-model ]] && _SAVED_MODEL="$(tr -d '[:space:]' </etc/ss-whisper/whisper-model 2>/dev/null || true)"
 WHISPER_MODEL="${WHISPER_MODEL:-${_SAVED_MODEL:-tiny}}"
 
+# Transcription engine + faster-whisper model: explicit env > saved choice > default.
+_SAVED_ENGINE=""
+[[ -f /etc/ss-whisper/engine ]] && _SAVED_ENGINE="$(tr -d '[:space:]' </etc/ss-whisper/engine 2>/dev/null || true)"
+TRANSCRIBE_ENGINE="${TRANSCRIBE_ENGINE:-${_SAVED_ENGINE:-whispercpp}}"
+_SAVED_FW=""
+[[ -f /etc/ss-whisper/fw-model ]] && _SAVED_FW="$(tr -d '[:space:]' </etc/ss-whisper/fw-model 2>/dev/null || true)"
+FW_MODEL="${FW_MODEL:-${_SAVED_FW:-tiny.en}}"
+
 # Where the ss-whisper config (phrases.txt / dnc.txt) lives — server.py default.
 SS_CONFIG_DIR="${SS_CONFIG_DIR:-/etc/ss-whisper}"
 
@@ -84,6 +92,8 @@ install_rewritten() {
   sed -e "s#${SRC_WORKSPACE}#${WORKSPACE}#g" \
       -e "s#^User=${SRC_SERVICE_USER}\$#User=${SERVICE_USER}#" \
       -e "s#ggml-${SRC_WHISPER_MODEL}\.bin#ggml-${WHISPER_MODEL}.bin#g" \
+      -e "s#^Environment=TRANSCRIBE_ENGINE=.*#Environment=TRANSCRIBE_ENGINE=${TRANSCRIBE_ENGINE}#" \
+      -e "s#^Environment=FW_MODEL=.*#Environment=FW_MODEL=${FW_MODEL}#" \
       "$src" > "$tmp"
   $SUDO install -m "$mode" "$tmp" "$dest"
   rm -f "$tmp"
