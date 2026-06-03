@@ -305,6 +305,18 @@ MODEL_FILE="$WORKSPACE/whisper.cpp/models/ggml-${WHISPER_MODEL}.bin"
 [[ -x "$WHISPER_BIN"   ]] || warn "whisper-server binary missing: $WHISPER_BIN (run setup.sh to build whisper.cpp)"
 [[ -f "$MODEL_FILE"    ]] || warn "model missing: $MODEL_FILE (run setup.sh, or set WHISPER_MODEL to a model you have)"
 
+# Register whisper.cpp's shared libs with ldconfig. The binary's RPATH is baked
+# at build time, so if the build was MOVED (e.g. by ka-migrate.sh) it can't find
+# libwhisper.so.1 and crash-loops with 127. Idempotent — runs every deploy.
+WBUILD="$WORKSPACE/whisper.cpp/build"
+if [[ -d "$WBUILD" ]]; then
+  { [[ -d "$WBUILD/src" ]]      && echo "$WBUILD/src"
+    [[ -d "$WBUILD/ggml/src" ]] && echo "$WBUILD/ggml/src"; } \
+    | $SUDO tee /etc/ld.so.conf.d/whisper-cpp.conf >/dev/null
+  $SUDO ldconfig 2>/dev/null || true
+  log "Registered whisper.cpp libs with ldconfig ($WBUILD)"
+fi
+
 # 6) Restart + verify services ------------------------------------------------
 OVERALL_OK=1
 
