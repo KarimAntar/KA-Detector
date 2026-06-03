@@ -11,11 +11,11 @@
 #   4. downloads the whisper model (default: tiny, matching the source server)
 #   5. creates the Python venv and installs requirements.txt
 #   6. runs deploy.sh (PULL=0) to install API code, Caddy config, systemd units,
-#      seed /etc/ss-whisper, and start + health-check everything.
+#      seed /etc/ka-whisper, and start + health-check everything.
 #
-# Usage on a FRESH box (repo already cloned, e.g. into ~/ss-deploy-repo):
-#   cd ~/ss-deploy-repo
-#   WORKSPACE=/home/<you>/.openclaw/workspace ./setup.sh
+# Usage on a FRESH box (repo already cloned, e.g. into ~/KA-whisper.cpp):
+#   cd ~/KA-whisper.cpp
+#   WORKSPACE=/home/<you>/.ka/workspace ./setup.sh
 #
 # Re-runnable: each step is skipped if already done (idempotent).
 #
@@ -26,7 +26,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # ----------------------------------------------------------------------------
 # Configuration (override via env)
 # ----------------------------------------------------------------------------
-WORKSPACE="${WORKSPACE:-/home/ubuntu/.openclaw/workspace}"
+WORKSPACE="${WORKSPACE:-/home/ubuntu/.ka/workspace}"
 API_DIR="${API_DIR:-$WORKSPACE/voicemail_api}"
 WHISPER_DIR="${WHISPER_DIR:-$WORKSPACE/whisper.cpp}"
 WHISPER_REPO="${WHISPER_REPO:-https://github.com/ggerganov/whisper.cpp.git}"

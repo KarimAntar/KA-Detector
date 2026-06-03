@@ -11,9 +11,9 @@
 #   - view live logs, edit phrases.txt / dnc.txt
 #
 # Usage:
-#   cd ~/SS-whisper.cpp
+#   cd ~/KA-whisper.cpp
 #   ./ss-ctl.sh                 # interactive menu
-#   WORKSPACE=/root/.openclaw/workspace ./ss-ctl.sh   # override workspace if needed
+#   WORKSPACE=/root/.ka/workspace ./ss-ctl.sh   # override workspace if needed
 #
 # It auto-detects the workspace from the installed systemd unit when possible.
 #
@@ -27,7 +27,7 @@ _SELF="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}"
 REPO_DIR="$(cd "$(dirname "$_SELF")" && pwd)"
 BRANCH="${BRANCH:-master}"
 SYSTEMD_DIR="/etc/systemd/system"
-SS_CONFIG_DIR="${SS_CONFIG_DIR:-/etc/ss-whisper}"
+SS_CONFIG_DIR="${SS_CONFIG_DIR:-/etc/ka-whisper}"
 CADDYFILE="${CADDYFILE:-/etc/caddy/Caddyfile}"
 WHISPER_SVC="whisper-server.service"
 API_SVC="voicemail-api.service"
@@ -53,7 +53,7 @@ detect_paths() {
     WHISPER_DIR="$(dirname "$MODELS_DIR")"
     WORKSPACE="${WORKSPACE:-$(dirname "$WHISPER_DIR")}"
   else
-    WORKSPACE="${WORKSPACE:-$HOME/.openclaw/workspace}"
+    WORKSPACE="${WORKSPACE:-$HOME/.ka/workspace}"
     WHISPER_DIR="$WORKSPACE/whisper.cpp"
     MODELS_DIR="$WHISPER_DIR/models"
   fi

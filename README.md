@@ -21,8 +21,8 @@ voicemail_api/
   run.sh             # launcher (activates .venv, runs uvicorn on :8808)
   requirements.txt   # slim, pinned runtime deps (fastapi/uvicorn/httpx/...)
   README.md          # API notes
-config/ss-whisper/
-  phrases.txt        # voicemail-detection phrases (seeded to /etc/ss-whisper)
+config/ka-whisper/
+  phrases.txt        # voicemail-detection phrases (seeded to /etc/ka-whisper)
   dnc.txt            # do-not-call phrases
 setup.sh             # FULL provision of a fresh VPS (packages, whisper.cpp, model, venv) then deploy
 deploy.sh            # update/sync an EXISTING install (code, config, units, restart)
@@ -37,20 +37,20 @@ call recordings, and the large `voicemail_backup_*.tar.gz` archives.
 `setup.sh` provisions a brand-new box to match the source server, then calls
 `deploy.sh`. It installs apt packages + Caddy, clones & builds **whisper.cpp**
 (CPU/Release), downloads the **`tiny`** model, creates the venv, installs
-requirements, seeds `/etc/ss-whisper`, installs the systemd units, and starts
+requirements, seeds `/etc/ka-whisper`, installs the systemd units, and starts
 everything with a health check.
 
 ```bash
 # clone the (private) repo, then:
-cd ~/ss-deploy-repo
-WORKSPACE=/home/$USER/.openclaw/workspace ./setup.sh
+cd ~/KA-whisper.cpp
+WORKSPACE=/home/$USER/.ka/workspace ./setup.sh
 ```
 
 Useful overrides:
 
 | Var              | Default                         | Purpose                                  |
 |------------------|---------------------------------|------------------------------------------|
-| `WORKSPACE`      | `/home/ubuntu/.openclaw/workspace` | parent of `voicemail_api/` + `whisper.cpp/` |
+| `WORKSPACE`      | `/home/ubuntu/.ka/workspace` | parent of `voicemail_api/` + `whisper.cpp/` |
 | `WHISPER_MODEL`  | `tiny`                          | model to fetch + run (`tiny.en`, `base`, …) |
 | `WHISPER_COMMIT` | *(latest)*                      | pin whisper.cpp to an exact commit       |
 | `SERVICE_USER`   | the user running it             | Unix user the services run as            |
@@ -78,8 +78,8 @@ Use this once the box is already provisioned (by `setup.sh` or by hand) and you
 just want to pull the latest code/config and restart.
 
 ```bash
-cd ~/ss-deploy-repo
-WORKSPACE=/home/$USER/.openclaw/workspace ./deploy.sh
+cd ~/KA-whisper.cpp
+WORKSPACE=/home/$USER/.ka/workspace ./deploy.sh
 ```
 
 `deploy.sh` will:
@@ -88,7 +88,7 @@ WORKSPACE=/home/$USER/.openclaw/workspace ./deploy.sh
 2. Replace the API **code** in `voicemail_api/` — preserving the existing
    `.venv`, `work/`, and `backups/`.
 3. Create a `.venv` + `pip install -r requirements.txt` **only if** none exists.
-4. Seed `/etc/ss-whisper/{phrases,dnc}.txt` if missing (existing files kept).
+4. Seed `/etc/ka-whisper/{phrases,dnc}.txt` if missing (existing files kept).
 5. Sync `caddy/public/` → `/usr/share/caddy` and the `Caddyfile` → `/etc/caddy`
    (validating the Caddyfile before any reload; falls back to `cp` if no rsync).
 6. Install the systemd units (rewriting workspace path, `User=`, and the model

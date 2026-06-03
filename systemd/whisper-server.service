@@ -4,8 +4,8 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/ubuntu/.openclaw/workspace/whisper.cpp/build/bin/whisper-server \
-    -m /home/ubuntu/.openclaw/workspace/whisper.cpp/models/ggml-tiny.bin \
+ExecStart=/home/ubuntu/.ka/workspace/whisper.cpp/build/bin/whisper-server \
+    -m /home/ubuntu/.ka/workspace/whisper.cpp/models/ggml-tiny.bin \
     -t 2 \
     -bs 1 \
     -bo 1 \

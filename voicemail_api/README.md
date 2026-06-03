@@ -3,12 +3,12 @@
 Lightweight HTTP API that transcribes audio and detects voicemail phrases using whisper.cpp.
 
 ## Requirements
-- whisper.cpp built at: `/home/ubuntu/.openclaw/workspace/whisper.cpp`
-- base model at: `/home/ubuntu/.openclaw/workspace/whisper.cpp/models/ggml-base.bin`
+- whisper.cpp built at: `/home/ubuntu/.ka/workspace/whisper.cpp`
+- base model at: `/home/ubuntu/.ka/workspace/whisper.cpp/models/ggml-base.bin`
 
 ## Run
 ```bash
-cd /home/ubuntu/.openclaw/workspace/voicemail_api
+cd /home/ubuntu/.ka/workspace/voicemail_api
 ./run.sh
 ```
 

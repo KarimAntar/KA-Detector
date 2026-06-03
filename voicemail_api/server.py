@@ -24,7 +24,7 @@ APP_DIR = Path(__file__).resolve().parent
 WORK_DIR = APP_DIR / "work"
 WORK_DIR.mkdir(parents=True, exist_ok=True)
 
-DEFAULT_WHISPER_CPP = Path(os.environ.get("WHISPER_CPP_PATH", "/home/ubuntu/.openclaw/workspace/whisper.cpp"))
+DEFAULT_WHISPER_CPP = Path(os.environ.get("WHISPER_CPP_PATH", "/home/ubuntu/.ka/workspace/whisper.cpp"))
 DEFAULT_MODEL = Path(os.environ.get("WHISPER_MODEL_PATH", str(DEFAULT_WHISPER_CPP / "models/ggml-tiny.bin")))
 
 WHISPER_SERVER_URL = os.environ.get("WHISPER_SERVER_URL", "http://127.0.0.1:9305")
@@ -108,7 +108,7 @@ DEFAULT_PHRASES = [
     "or because of a bad connection",
 ]
 
-PHRASES_FILE = Path(os.environ.get("PHRASES_FILE", "/etc/ss-whisper/phrases.txt"))
+PHRASES_FILE = Path(os.environ.get("PHRASES_FILE", "/etc/ka-whisper/phrases.txt"))
 
 _PHRASES_CACHE = None
 _PHRASES_MTIME = 0.0
@@ -135,7 +135,7 @@ def _load_phrases():
 
 PHRASES = _load_phrases()
 
-DNC_FILE = Path(os.environ.get("DNC_FILE", "/etc/ss-whisper/dnc.txt"))
+DNC_FILE = Path(os.environ.get("DNC_FILE", "/etc/ka-whisper/dnc.txt"))
 _DNC_CACHE = None
 _DNC_MTIME = 0.0
 

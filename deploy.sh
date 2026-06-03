@@ -26,9 +26,9 @@ BRANCH="${BRANCH:-master}"
 # The workspace path baked into the committed files (the source server). Any
 # occurrence of this inside systemd units / run.sh is rewritten to $WORKSPACE on
 # install, so this bundle is portable to a VPS using a different home dir.
-SRC_WORKSPACE="${SRC_WORKSPACE:-/home/ubuntu/.openclaw/workspace}"
+SRC_WORKSPACE="${SRC_WORKSPACE:-/home/ubuntu/.ka/workspace}"
 
-WORKSPACE="${WORKSPACE:-/home/ubuntu/.openclaw/workspace}"
+WORKSPACE="${WORKSPACE:-/home/ubuntu/.ka/workspace}"
 API_DIR="${API_DIR:-$WORKSPACE/voicemail_api}"
 
 # Set SKIP_SYSTEMD=1 to leave the target's existing systemd units untouched.
@@ -47,31 +47,31 @@ SYSTEMD_DIR="${SYSTEMD_DIR:-/etc/systemd/system}"
 SRC_WHISPER_MODEL="${SRC_WHISPER_MODEL:-tiny}"
 # Default model resolution: explicit env  >  saved choice (ss-ctl.sh switch)  >  tiny.
 _SAVED_MODEL=""
-[[ -f /etc/ss-whisper/whisper-model ]] && _SAVED_MODEL="$(tr -d '[:space:]' </etc/ss-whisper/whisper-model 2>/dev/null || true)"
+[[ -f /etc/ka-whisper/whisper-model ]] && _SAVED_MODEL="$(tr -d '[:space:]' </etc/ka-whisper/whisper-model 2>/dev/null || true)"
 WHISPER_MODEL="${WHISPER_MODEL:-${_SAVED_MODEL:-tiny}}"
 
 # Transcription engine + faster-whisper model: explicit env > saved choice > default.
 _SAVED_ENGINE=""
-[[ -f /etc/ss-whisper/engine ]] && _SAVED_ENGINE="$(tr -d '[:space:]' </etc/ss-whisper/engine 2>/dev/null || true)"
+[[ -f /etc/ka-whisper/engine ]] && _SAVED_ENGINE="$(tr -d '[:space:]' </etc/ka-whisper/engine 2>/dev/null || true)"
 TRANSCRIBE_ENGINE="${TRANSCRIBE_ENGINE:-${_SAVED_ENGINE:-whispercpp}}"
 _SAVED_FW=""
-[[ -f /etc/ss-whisper/fw-model ]] && _SAVED_FW="$(tr -d '[:space:]' </etc/ss-whisper/fw-model 2>/dev/null || true)"
+[[ -f /etc/ka-whisper/fw-model ]] && _SAVED_FW="$(tr -d '[:space:]' </etc/ka-whisper/fw-model 2>/dev/null || true)"
 FW_MODEL="${FW_MODEL:-${_SAVED_FW:-tiny.en}}"
 
 # uvicorn workers: explicit env > saved choice (ka menu) > 2.
 _SAVED_WORKERS=""
-[[ -f /etc/ss-whisper/workers ]] && _SAVED_WORKERS="$(tr -dc '0-9' </etc/ss-whisper/workers 2>/dev/null || true)"
+[[ -f /etc/ka-whisper/workers ]] && _SAVED_WORKERS="$(tr -dc '0-9' </etc/ka-whisper/workers 2>/dev/null || true)"
 UVICORN_WORKERS="${UVICORN_WORKERS:-${_SAVED_WORKERS:-2}}"
 
-# Where the ss-whisper config (phrases.txt / dnc.txt) lives — server.py default.
-SS_CONFIG_DIR="${SS_CONFIG_DIR:-/etc/ss-whisper}"
+# Where the ka-whisper config (phrases.txt / dnc.txt) lives — server.py default.
+SS_CONFIG_DIR="${SS_CONFIG_DIR:-/etc/ka-whisper}"
 
 # PULL=0 skips the git clone/fetch and uses CLONE_DIR as-is (used by setup.sh,
 # or when you've already checked the repo out and don't want a network pull).
 PULL="${PULL:-1}"
 
 # Where to clone/pull the repo to.
-CLONE_DIR="${CLONE_DIR:-$WORKSPACE/ss-deploy-repo}"
+CLONE_DIR="${CLONE_DIR:-$WORKSPACE/ka-deploy-repo}"
 
 # Services to restart (in order).
 SERVICES=(whisper-server.service voicemail-api.service)
@@ -224,7 +224,7 @@ else
   log "PIP_SYNC=0 — skipping requirements install"
 fi
 
-# 2b) ss-whisper config (phrases.txt / dnc.txt) -------------------------------
+# 2b) ka-whisper config (phrases.txt / dnc.txt) -------------------------------
 # server.py reads/writes these as the service user, so the dir must exist and be
 # writable. Existing files are PRESERVED (never overwrite live admin edits) —
 # only missing ones are seeded from the repo.
@@ -232,11 +232,11 @@ log "Ensuring config dir $SS_CONFIG_DIR (owner $SERVICE_USER)"
 $SUDO mkdir -p "$SS_CONFIG_DIR"
 $SUDO chown "$SERVICE_USER" "$SS_CONFIG_DIR" 2>/dev/null || true
 for cf in phrases.txt dnc.txt; do
-  if [[ -f "$SRC/config/ss-whisper/$cf" ]]; then
+  if [[ -f "$SRC/config/ka-whisper/$cf" ]]; then
     if [[ -f "$SS_CONFIG_DIR/$cf" ]]; then
       log "  $SS_CONFIG_DIR/$cf exists — left untouched"
     else
-      $SUDO install -m 644 -o "$SERVICE_USER" "$SRC/config/ss-whisper/$cf" "$SS_CONFIG_DIR/$cf"
+      $SUDO install -m 644 -o "$SERVICE_USER" "$SRC/config/ka-whisper/$cf" "$SS_CONFIG_DIR/$cf"
       log "  seeded $SS_CONFIG_DIR/$cf"
     fi
   fi

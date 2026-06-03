@@ -5,16 +5,16 @@ Wants=whisper-server.service
 
 [Service]
 Type=simple
-WorkingDirectory=/home/ubuntu/.openclaw/workspace/voicemail_api
-ExecStart=/home/ubuntu/.openclaw/workspace/voicemail_api/run.sh
+WorkingDirectory=/home/ubuntu/.ka/workspace/voicemail_api
+ExecStart=/home/ubuntu/.ka/workspace/voicemail_api/run.sh
 KillMode=control-group
 KillSignal=SIGTERM
 TimeoutStopSec=30
 Restart=on-failure
 RestartSec=3
 User=ubuntu
-Environment=WHISPER_CPP_PATH=/home/ubuntu/.openclaw/workspace/whisper.cpp
-Environment=WHISPER_MODEL_PATH=/home/ubuntu/.openclaw/workspace/whisper.cpp/models/ggml-tiny.bin
+Environment=WHISPER_CPP_PATH=/home/ubuntu/.ka/workspace/whisper.cpp
+Environment=WHISPER_MODEL_PATH=/home/ubuntu/.ka/workspace/whisper.cpp/models/ggml-tiny.bin
 Environment=WHISPER_SERVER_URL=http://127.0.0.1:9305
 # Transcription engine: whispercpp (default) | fasterwhisper (WhisperLive's CTranslate2 backend)
 Environment=TRANSCRIBE_ENGINE=whispercpp
